@@ -10,6 +10,7 @@
 
 import type * as modules_lead from "../modules/lead.js";
 import type * as modules_quotations from "../modules/quotations.js";
+import type * as modules_users from "../modules/users.js";
 
 import type {
   ApiFromModules,
@@ -20,6 +21,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   "modules/lead": typeof modules_lead;
   "modules/quotations": typeof modules_quotations;
+  "modules/users": typeof modules_users;
 }>;
 
 /**
