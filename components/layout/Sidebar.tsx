@@ -2,8 +2,10 @@
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePermissions } from '@/hooks/usePermissions';
+import { getRoleLabel } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import { useSidebarStore } from '@/stores/sidebarStore';
+import { useUser } from '@clerk/nextjs';
 import {
   BarChart3,
   Calculator,
@@ -39,7 +41,7 @@ const NAV_STRUCTURE = [
   {
     section: 'CRM',
     items: [
-      { label: 'Leads', href: '/crm/leads', icon: Users, permission: 'leads:view' as const, badge: 'live' },
+      { label: 'Leads', href: '/crm/lead', icon: Users, permission: 'leads:view' as const, badge: 'live' },
       { label: 'Customers', href: '/crm/customers', icon: UserCircle, permission: 'customers:view' as const },
     ],
   },
@@ -133,7 +135,8 @@ const NAV_STRUCTURE = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { isCollapsed, toggleCollapse } = useSidebarStore();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, role } = usePermissions();
+  const { user } = useUser();
   const [expandedItems, setExpandedItems] = useState<string[]>(['Procurement', 'Inventory', 'Accounts']);
 
   const toggleExpand = (label: string) => {
@@ -143,32 +146,39 @@ export default function Sidebar() {
   return (
     <aside
       className={cn(
-        'flex flex-col bg-background border-r transition-all duration-200 shrink-0',
-        isCollapsed ? 'w-14' : 'w-52.5',
+        'relative z-30 flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-out',
+        isCollapsed ? 'w-17' : 'w-64',
       )}
     >
-      {/* Logo */}
-      <div className="flex items-center h-12 px-3 border-b gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-500 text-white shrink-0">
-          <Sun className="h-4 w-4" />
+      <div className="flex h-14 items-center gap-2.5 border-b border-sidebar-border px-3">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-linear-to-br from-amber-400 to-orange-500 text-white shadow-sm shadow-amber-500/20">
+          <Sun className="size-4" />
         </div>
         {!isCollapsed && (
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold leading-none truncate">SuryaERP</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5 truncate">PM Surya Ghar</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold tracking-tight">SuryaERP</p>
+            <p className="truncate text-[11px] text-muted-foreground">PM Surya Ghar</p>
           </div>
         )}
-        <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto shrink-0" onClick={toggleCollapse}>
-          <PanelLeft className="h-3.5 w-3.5" />
-        </Button>
+        {!isCollapsed && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            className="ml-auto shrink-0 text-muted-foreground"
+            onClick={toggleCollapse}
+            aria-label="Collapse sidebar"
+          >
+            <PanelLeft className="size-3.5" />
+          </Button>
+        )}
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-2 px-1.5">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-3">
         {NAV_STRUCTURE.map((group, gi) => (
           <div key={gi} className="mb-1">
             {group.section && !isCollapsed && (
-              <p className="px-2 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+              <p className="px-2.5 pb-1 pt-2 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
                 {group.section}
               </p>
             )}
@@ -183,32 +193,33 @@ export default function Sidebar() {
                 return (
                   <div key={item.label}>
                     <button
+                      type="button"
                       onClick={() => toggleExpand(item.label)}
                       className={cn(
-                        'w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors',
+                        'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors',
                         isChildActive
-                          ? 'bg-amber-50 text-amber-700 font-medium'
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                          ? 'bg-sidebar-accent font-medium text-amber-700 dark:text-amber-400'
+                          : 'text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground',
                       )}
                     >
-                      <item.icon className="h-3.5 w-3.5 shrink-0" />
+                      <item.icon className="size-4 shrink-0" />
                       {!isCollapsed && (
                         <>
                           <span className="flex-1 text-left">{item.label}</span>
-                          {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                          {isExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
                         </>
                       )}
                     </button>
                     {isExpanded && !isCollapsed && (
-                      <div className="ml-5 mt-0.5 space-y-0.5 pl-2 border-l border-border">
+                      <div className="mt-0.5 ml-3 space-y-0.5 border-l border-sidebar-border pl-2.5">
                         {item.children.map((child) => (
                           <Link
                             key={child.href}
                             href={child.href}
                             className={cn(
-                              'block px-2 py-1 rounded-sm text-xs transition-colors',
+                              'block rounded-md px-2.5 py-1.5 text-sm transition-colors',
                               pathname === child.href
-                                ? 'text-amber-700 font-medium'
+                                ? 'font-medium text-amber-700 dark:text-amber-400'
                                 : 'text-muted-foreground hover:text-foreground',
                             )}
                           >
@@ -231,14 +242,23 @@ export default function Sidebar() {
                     <Link
                       href={href}
                       className={cn(
-                        'flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors',
+                        'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors',
                         isActive
-                          ? 'bg-amber-50 text-amber-700 font-medium'
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                          ? 'bg-sidebar-accent font-medium text-amber-700 dark:text-amber-400'
+                          : 'text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground',
                       )}
                     >
-                      <item.icon className="h-3.5 w-3.5 shrink-0" />
-                      {!isCollapsed && <span className="flex-1 truncate">{item.label}</span>}
+                      <item.icon className="size-4 shrink-0" />
+                      {!isCollapsed && (
+                        <>
+                          <span className="flex-1 truncate">{item.label}</span>
+                          {'badge' in item && item.badge === 'live' && (
+                            <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                              Live
+                            </span>
+                          )}
+                        </>
+                      )}
                     </Link>
                   </TooltipTrigger>
                   {isCollapsed && (
@@ -252,6 +272,26 @@ export default function Sidebar() {
           </div>
         ))}
       </nav>
+
+      <div className="border-t border-sidebar-border p-3">
+        {!isCollapsed ? (
+          <div className="rounded-lg bg-sidebar-accent/50 px-3 py-2.5">
+            <p className="truncate text-sm font-medium">
+              {user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? 'User'}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">{getRoleLabel(role)}</p>
+          </div>
+        ) : (
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <div className="mx-auto flex size-8 items-center justify-center rounded-full bg-sidebar-accent text-xs font-semibold uppercase">
+                {(user?.firstName?.[0] ?? user?.primaryEmailAddress?.emailAddress?.[0] ?? 'U').toUpperCase()}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right">{user?.fullName ?? 'Account'}</TooltipContent>
+          </Tooltip>
+        )}
+      </div>
     </aside>
   );
 }
