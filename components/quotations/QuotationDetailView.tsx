@@ -11,11 +11,18 @@ import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { QUOTATION_STATUS } from '@/utils/constants';
 import { useMutation, useQuery } from 'convex/react';
-import { CheckCircle2, FileText, Pencil, Printer, Send, ShoppingCart, Trash2 } from 'lucide-react';
+import { CheckCircle2, FileText, Pencil, Printer, Send, ShoppingCart, Trash2, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
+
+const PIPELINE_STEPS = [
+  { key: 'draft',     label: 'Draft Created',       doneWhen: () => true },
+  { key: 'sent',      label: 'Sent to Customer',     doneWhen: (s: string) => ['sent', 'under_negotiation', 'approved', 'converted_to_order', 'rejected'].includes(s) },
+  { key: 'approved',  label: 'Customer Approved',    doneWhen: (s: string) => ['approved', 'converted_to_order'].includes(s) },
+  { key: 'order',     label: 'Sales Order Created',  doneWhen: (s: string) => s === 'converted_to_order' },
+];
 
 export function QuotationDetailView({ quotationId }: { quotationId: Id<'quotations'> }) {
   const router = useRouter();
@@ -77,10 +84,6 @@ export function QuotationDetailView({ quotationId }: { quotationId: Id<'quotatio
     }
   }
 
-  function handlePrint() {
-    window.print();
-  }
-
   async function handleDelete() {
     setDeleteLoading(true);
     try {
@@ -110,53 +113,53 @@ export function QuotationDetailView({ quotationId }: { quotationId: Id<'quotatio
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={quotation.status} config={QUOTATION_STATUS} />
-            {quotation.leadId ? (
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/crm/leads/${quotation.leadId}`}>View lead</Link>
+            {quotation.leadId && (
+              <Button asChild variant="ghost" size="sm">
+                <Link href={`/crm/leads/${quotation.leadId}`}>View Lead</Link>
               </Button>
-            ) : null}
-            {canSend ? (
+            )}
+            {canSend && (
               <Button size="sm" onClick={() => void handleSend()}>
                 <Send className="mr-1.5 size-4" />
-                Send to customer
+                Send to Customer
               </Button>
-            ) : null}
-            {canApprove ? (
+            )}
+            {canApprove && (
               <>
-                <Button size="sm" variant="default" onClick={() => void handleApprove()}>
+                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => void handleApprove()}>
                   <CheckCircle2 className="mr-1.5 size-4" />
-                  Customer approved
+                  Approved
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => void handleReject()}>
+                  <X className="mr-1.5 size-4" />
                   Rejected
                 </Button>
               </>
-            ) : null}
-            {canOrder ? (
-              <Button size="sm" onClick={() => void handleCreateOrder()}>
+            )}
+            {canOrder && (
+              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => void handleCreateOrder()}>
                 <ShoppingCart className="mr-1.5 size-4" />
-                Create sales order
+                Create Sales Order
               </Button>
-            ) : null}
-            {isConverted ? (
+            )}
+            {isConverted && (
               <Button asChild size="sm" variant="secondary">
-                <Link href="/orders">View orders</Link>
+                <Link href="/orders">View Orders</Link>
               </Button>
-            ) : null}
-            {canEdit ? (
+            )}
+            {canEdit && (
               <Button asChild size="sm" variant="outline">
                 <Link href={`/quotations/${quotationId}/edit`}>
                   <Pencil className="mr-1.5 size-4" />
                   Edit
                 </Link>
               </Button>
-            ) : null}
-            {canDelete ? (
+            )}
+            {canDelete && (
               <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}>
-                <Trash2 className="mr-1.5 size-4" />
-                Delete
+                <Trash2 className="size-4" />
               </Button>
-            ) : null}
+            )}
           </div>
         }
       />
@@ -171,17 +174,17 @@ export function QuotationDetailView({ quotationId }: { quotationId: Id<'quotatio
       />
 
       <Tabs defaultValue="document">
-        <TabsList>
-          <TabsTrigger value="document" className="gap-1.5">
+        <TabsList className="h-9">
+          <TabsTrigger value="document" className="gap-1.5 text-xs">
             <FileText className="size-3.5" />
-            Customer quotation
+            Customer Quotation
           </TabsTrigger>
-          <TabsTrigger value="workflow">Workflow</TabsTrigger>
+          <TabsTrigger value="workflow" className="text-xs">Pipeline</TabsTrigger>
         </TabsList>
 
         <TabsContent value="document" className="mt-4 space-y-4">
           <div className="flex justify-end print:hidden">
-            <Button variant="outline" size="sm" onClick={handlePrint}>
+            <Button variant="outline" size="sm" onClick={() => window.print()}>
               <Printer className="mr-1.5 size-4" />
               Print / Save PDF
             </Button>
@@ -190,31 +193,40 @@ export function QuotationDetailView({ quotationId }: { quotationId: Id<'quotatio
         </TabsContent>
 
         <TabsContent value="workflow" className="mt-4">
-          <div className="rounded-xl border border-border/60 bg-muted/20 p-6">
-            <h3 className="text-sm font-semibold">Pre-sales pipeline</h3>
-            <ol className="mt-4 space-y-3 text-sm">
-              {[
-                { step: 'Draft', done: true },
-                {
-                  step: 'Sent to customer',
-                  done: ['sent', 'under_negotiation', 'approved', 'converted_to_order', 'rejected'].includes(
-                    quotation.status,
-                  ),
-                },
-                { step: 'Customer approved', done: ['approved', 'converted_to_order'].includes(quotation.status) },
-                { step: 'Sales order confirmed', done: quotation.status === 'converted_to_order' },
-              ].map((s) => (
-                <li key={s.step} className="flex items-center gap-2">
-                  <span className={`size-2 rounded-full ${s.done ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
-                  <span className={s.done ? 'font-medium' : 'text-muted-foreground'}>{s.step}</span>
-                </li>
-              ))}
+          <div className="rounded-xl border border-border/60 bg-card p-6">
+            <h3 className="text-sm font-semibold">Pre-Sales Pipeline</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">Track this quotation through the approval workflow</p>
+
+            <ol className="mt-5 space-y-0">
+              {PIPELINE_STEPS.map((step, i) => {
+                const done = step.doneWhen(quotation.status);
+                const isLast = i === PIPELINE_STEPS.length - 1;
+                return (
+                  <li key={step.key} className="flex gap-3">
+                    <div className="flex flex-col items-center">
+                      <div className={`flex size-6 items-center justify-center rounded-full ring-2 ${done ? 'bg-emerald-500 ring-emerald-500/20' : 'bg-muted ring-border'}`}>
+                        {done ? (
+                          <CheckCircle2 className="size-3.5 text-white" />
+                        ) : (
+                          <span className="size-2 rounded-full bg-muted-foreground/30" />
+                        )}
+                      </div>
+                      {!isLast && <div className={`w-px flex-1 my-1 ${done ? 'bg-emerald-300 dark:bg-emerald-700' : 'bg-border'}`} />}
+                    </div>
+                    <div className={`pb-4 pt-0.5 text-sm ${done ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                      {step.label}
+                    </div>
+                  </li>
+                );
+              })}
             </ol>
-            {quotation.survey ? (
-              <p className="mt-4 text-xs text-muted-foreground">
-                Linked survey: {quotation.survey.surveyNumber} ({quotation.survey.recommendedCapacityKw} kW recommended)
-              </p>
-            ) : null}
+
+            {quotation.survey && (
+              <div className="mt-4 rounded-lg border border-border/50 bg-muted/30 p-3 text-xs text-muted-foreground">
+                Linked survey: <span className="font-mono font-medium">{quotation.survey.surveyNumber}</span>
+                {' '}· {quotation.survey.recommendedCapacityKw} kW recommended
+              </div>
+            )}
           </div>
         </TabsContent>
       </Tabs>

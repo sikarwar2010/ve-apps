@@ -12,9 +12,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/convex/_generated/api';
@@ -22,7 +24,18 @@ import type { Id } from '@/convex/_generated/dataModel';
 import { calculatePMSuryaSubsidy } from '@/lib/subsidyCalculator';
 import { formatCapacity, formatCurrency, formatDate } from '@/utils/formatters';
 import { useMutation, useQuery } from 'convex/react';
-import { ChevronDown, FileText, MapPin, Pencil, Phone, Trash2, Zap } from 'lucide-react';
+import {
+  Building2,
+  ChevronDown,
+  FileText,
+  MapPin,
+  Pencil,
+  Phone,
+  Sun,
+  Trash2,
+  User,
+  Zap,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -43,6 +56,15 @@ const NEXT_STATUSES = [
 type LeadDetailViewProps = {
   leadId: Id<'leads'>;
 };
+
+function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-2.5 text-sm">
+      <span className="mt-0.5 shrink-0 text-muted-foreground">{icon}</span>
+      <span className="text-foreground/80">{children}</span>
+    </div>
+  );
+}
 
 export function LeadDetailView({ leadId }: LeadDetailViewProps) {
   const router = useRouter();
@@ -126,35 +148,38 @@ export function LeadDetailView({ leadId }: LeadDetailViewProps) {
         ]}
         actions={
           <div className="flex items-center gap-2">
-            {['survey_completed', 'interested', 'quotation_sent', 'negotiation', 'contacted'].includes(lead.status) ? (
+            {['survey_completed', 'interested', 'quotation_sent', 'negotiation', 'contacted'].includes(lead.status) && (
               <Button asChild size="sm" variant="secondary">
                 <Link href={`/quotations/new?leadId=${leadId}`}>
                   <FileText className="mr-1.5 size-4" />
-                  Create quotation
+                  Create Quotation
                 </Link>
               </Button>
-            ) : null}
-            {lead.status !== 'won' && lead.status !== 'lost' ? (
+            )}
+            {lead.status !== 'won' && lead.status !== 'lost' && (
               <ConvertCustomerDialog leadId={leadId} defaultDiscom={lead.discomName} />
-            ) : null}
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
-                  Update status
-                  <ChevronDown className="ml-1 size-4" />
+                  Update Status
+                  <ChevronDown className="ml-1 size-3.5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {NEXT_STATUSES.filter((s) => s !== lead.status).map((status) => (
-                  <DropdownMenuItem key={status} onClick={() => handleStatusChange(status)}>
-                    {status.replace(/_/g, ' ')}
-                  </DropdownMenuItem>
+              <DropdownMenuContent align="end" className="w-48">
+                {NEXT_STATUSES.filter((s) => s !== lead.status).map((status, i, arr) => (
+                  <span key={status}>
+                    {status === 'won' && <DropdownMenuSeparator />}
+                    <DropdownMenuItem
+                      onClick={() => handleStatusChange(status)}
+                      className={status === 'won' ? 'text-emerald-600 font-medium' : status === 'lost' ? 'text-red-600' : ''}
+                    >
+                      {status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                    </DropdownMenuItem>
+                  </span>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button variant="ghost" size="sm" onClick={() => router.push('/crm/leads')}>
-              Back
-            </Button>
             <Button asChild variant="outline" size="sm">
               <Link href={`/crm/leads/${leadId}/edit`}>
                 <Pencil className="mr-1.5 size-4" />
@@ -162,8 +187,7 @@ export function LeadDetailView({ leadId }: LeadDetailViewProps) {
               </Link>
             </Button>
             <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
-              <Trash2 className="mr-1.5 size-4" />
-              Delete
+              <Trash2 className="size-4" />
             </Button>
           </div>
         }
@@ -179,102 +203,167 @@ export function LeadDetailView({ leadId }: LeadDetailViewProps) {
         onConfirm={handleDelete}
       />
 
+      {/* Metric tiles */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-border/60 bg-card px-4 py-3">
+          <p className="text-xs text-muted-foreground">Status</p>
+          <div className="mt-1.5"><LeadStatusBadge status={lead.status} /></div>
+        </div>
+        <div className="rounded-xl border border-border/60 bg-card px-4 py-3">
+          <p className="text-xs text-muted-foreground">Source</p>
+          <div className="mt-1.5"><LeadSourceBadge source={lead.source} /></div>
+        </div>
+        <div className="rounded-xl border border-border/60 bg-card px-4 py-3">
+          <p className="text-xs text-muted-foreground">System Size</p>
+          <p className="mt-1 text-lg font-bold tabular-nums">
+            {lead.expectedCapacityKw ? formatCapacity(lead.expectedCapacityKw) : <span className="text-muted-foreground text-sm">—</span>}
+          </p>
+        </div>
+        {subsidy ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 dark:border-emerald-800/40 dark:bg-emerald-950/20">
+            <p className="text-xs text-muted-foreground">PM Surya Subsidy</p>
+            <p className="mt-1 text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+              {formatCurrency(subsidy.subsidyAmount)}
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border/60 bg-card px-4 py-3">
+            <p className="text-xs text-muted-foreground">Assigned To</p>
+            <p className="mt-1 text-sm font-semibold">{lead.assignedTo?.name ?? 'Unassigned'}</p>
+          </div>
+        )}
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-3">
+        {/* Left column */}
         <div className="space-y-4 lg:col-span-1">
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold">Overview</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                <User className="size-4 text-muted-foreground" />
+                Contact Details
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 text-sm">
-              <div className="flex flex-wrap gap-2">
-                <LeadStatusBadge status={lead.status} />
-                <LeadSourceBadge source={lead.source} />
-              </div>
-              <div className="space-y-2 text-muted-foreground">
-                <p className="flex items-center gap-2">
-                  <Phone className="size-3.5" />
-                  {lead.mobile}
-                </p>
-                {lead.email ? <p>{lead.email}</p> : null}
-                <p className="flex items-start gap-2">
-                  <MapPin className="mt-0.5 size-3.5 shrink-0" />
-                  <span>
-                    {lead.addressLine1}
-                    <br />
-                    {lead.city}, {lead.state} {lead.pincode}
-                  </span>
-                </p>
-              </div>
-              <div className="rounded-lg bg-muted/30 p-3 text-xs">
-                <p className="text-muted-foreground">Assigned to</p>
-                <p className="mt-0.5 font-medium">{lead.assignedTo?.name ?? 'Unassigned'}</p>
-                <p className="mt-2 text-muted-foreground">Created</p>
-                <p className="mt-0.5 font-medium">{formatDate(lead.createdAt)}</p>
+            <CardContent className="space-y-3">
+              <InfoRow icon={<Phone className="size-3.5" />}>{lead.mobile}</InfoRow>
+              {lead.email && <InfoRow icon={<span className="text-[11px]">@</span>}>{lead.email}</InfoRow>}
+              <InfoRow icon={<MapPin className="size-3.5" />}>
+                <span>
+                  {lead.addressLine1}
+                  <br />
+                  <span className="text-muted-foreground">{lead.city}, {lead.state} {lead.pincode}</span>
+                </span>
+              </InfoRow>
+              <Separator />
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <p className="text-muted-foreground">Assigned to</p>
+                  <p className="mt-0.5 font-semibold">{lead.assignedTo?.name ?? 'Unassigned'}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Created</p>
+                  <p className="mt-0.5 font-semibold">{formatDate(lead.createdAt)}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {(lead.expectedCapacityKw || subsidy) && (
+          {(lead.expectedCapacityKw || lead.monthlyConsumptionKwh || lead.discomName) && (
             <Card>
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                  <Zap className="size-4 text-amber-500" />
-                  Solar profile
+                  <Sun className="size-4 text-amber-500" />
+                  Solar Profile
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
-                {lead.expectedCapacityKw ? (
-                  <p>
-                    System size: <strong>{formatCapacity(lead.expectedCapacityKw)}</strong>
-                  </p>
-                ) : null}
-                {lead.monthlyConsumptionKwh ? (
-                  <p className="text-muted-foreground">Consumption: {lead.monthlyConsumptionKwh} kWh/mo</p>
-                ) : null}
-                {lead.discomName ? <p className="text-muted-foreground">DISCOM: {lead.discomName}</p> : null}
-                {subsidy ? (
-                  <div className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
-                    <p className="text-xs text-muted-foreground">PM Surya subsidy (est.)</p>
-                    <p className="text-lg font-semibold text-emerald-700 dark:text-emerald-400">
-                      {formatCurrency(subsidy.subsidyAmount)}
-                    </p>
+                {lead.expectedCapacityKw && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">System size</span>
+                    <span className="font-semibold flex items-center gap-1">
+                      <Zap className="size-3.5 text-amber-500" />
+                      {formatCapacity(lead.expectedCapacityKw)}
+                    </span>
+                  </div>
+                )}
+                {lead.monthlyConsumptionKwh && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Monthly use</span>
+                    <span className="font-medium">{lead.monthlyConsumptionKwh} kWh</span>
+                  </div>
+                )}
+                {lead.discomName && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">DISCOM</span>
+                    <span className="font-medium">{lead.discomName}</span>
+                  </div>
+                )}
+                {subsidy && (
+                  <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800/30 dark:bg-emerald-950/30">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">PM Surya Ghar (est.)</p>
+                      <p className="text-base font-bold text-emerald-700 dark:text-emerald-400">
+                        {formatCurrency(subsidy.subsidyAmount)}
+                      </p>
+                    </div>
                     <p className="mt-1 text-[11px] text-muted-foreground">{subsidy.description}</p>
                   </div>
-                ) : null}
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {lead.propertyType && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                  <Building2 className="size-4 text-muted-foreground" />
+                  Property
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground">Type</p>
+                  <p className="mt-0.5 font-medium capitalize">{lead.propertyType}</p>
+                </div>
+                {lead.rooftopType && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Rooftop</p>
+                    <p className="mt-0.5 font-medium capitalize">{lead.rooftopType}</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
         </div>
 
+        {/* Right column */}
         <div className="space-y-4 lg:col-span-2">
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold">Add note</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">Add Note</CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleAddNote} className="space-y-3">
-                <div>
-                  <Label htmlFor="note" className="sr-only">
-                    Note
-                  </Label>
-                  <Textarea
-                    id="note"
-                    placeholder="Call outcome, site visit notes, follow-up details…"
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    rows={3}
-                  />
-                </div>
+                <Label htmlFor="note" className="sr-only">Note</Label>
+                <Textarea
+                  id="note"
+                  placeholder="Call outcome, site visit notes, follow-up details…"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={3}
+                  className="resize-none"
+                />
                 <Button type="submit" size="sm" disabled={isSubmitting || !note.trim()}>
-                  {isSubmitting ? 'Saving…' : 'Save note'}
+                  {isSubmitting ? 'Saving…' : 'Save Note'}
                 </Button>
               </form>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold">Activity timeline</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">Activity Timeline</CardTitle>
             </CardHeader>
             <CardContent>
               <LeadTimeline activities={lead.activities} />

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/convex/_generated/api';
@@ -14,7 +15,7 @@ import type { Id } from '@/convex/_generated/dataModel';
 import { SURVEY_STATUS } from '@/utils/constants';
 import { formatCapacity, formatDateTime } from '@/utils/formatters';
 import { useMutation, useQuery } from 'convex/react';
-import { Ban, FileText, Trash2 } from 'lucide-react';
+import { Ban, CalendarClock, CheckCircle2, FileText, MapPin, Ruler, Sun, Trash2, User, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -112,28 +113,27 @@ export function SurveyDetailView({ surveyId }: { surveyId: Id<'surveys'> }) {
         description={survey.lead?.name ?? 'Site survey'}
         breadcrumbs={[{ label: 'Site Survey', href: '/survey' }, { label: survey.surveyNumber }]}
         actions={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <StatusBadge status={survey.status} config={SURVEY_STATUS} />
-            {isComplete && survey.leadId ? (
+            {isComplete && survey.leadId && (
               <Button asChild size="sm">
                 <Link href={`/quotations/new?leadId=${survey.leadId}&surveyId=${surveyId}`}>
                   <FileText className="mr-1.5 size-4" />
-                  Create quotation
+                  Create Quotation
                 </Link>
               </Button>
-            ) : null}
-            {canModify ? (
+            )}
+            {canModify && (
               <>
                 <Button variant="outline" size="sm" onClick={() => setCancelOpen(true)}>
                   <Ban className="mr-1.5 size-4" />
                   Cancel
                 </Button>
                 <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
-                  <Trash2 className="mr-1.5 size-4" />
-                  Delete
+                  <Trash2 className="size-4" />
                 </Button>
               </>
-            ) : null}
+            )}
           </div>
         }
       />
@@ -156,77 +156,165 @@ export function SurveyDetailView({ surveyId }: { surveyId: Id<'surveys'> }) {
         onConfirm={handleDelete}
       />
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Schedule</CardTitle>
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Schedule info */}
+        <Card className="lg:col-span-1">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <CalendarClock className="size-4 text-muted-foreground" />
+              Schedule
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <p>Scheduled: {formatDateTime(survey.scheduledAt)}</p>
-            <p>Engineer: {survey.engineer?.name ?? '—'}</p>
-            {survey.lead ? (
-              <p>
-                Site: {survey.lead.addressLine1}, {survey.lead.city}
-              </p>
-            ) : null}
-            {survey.leadId ? (
-              <Button asChild variant="link" className="h-auto p-0">
-                <Link href={`/crm/leads/${survey.leadId}`}>View lead</Link>
-              </Button>
-            ) : null}
+          <CardContent className="space-y-4 text-sm">
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs text-muted-foreground">Scheduled At</p>
+                <p className="mt-0.5 font-semibold">{formatDateTime(survey.scheduledAt)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Assigned Engineer</p>
+                <p className={`mt-0.5 font-semibold flex items-center gap-1.5 ${survey.engineer ? '' : 'text-muted-foreground'}`}>
+                  <User className="size-3.5" />
+                  {survey.engineer?.name ?? 'Unassigned'}
+                </p>
+              </div>
+              {survey.lead && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Site Location</p>
+                  <p className="mt-0.5 font-medium flex items-start gap-1.5">
+                    <MapPin className="size-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+                    <span>{survey.lead.addressLine1}, {(survey.lead as { city?: string }).city}</span>
+                  </p>
+                </div>
+              )}
+            </div>
+            {survey.leadId && (
+              <>
+                <Separator />
+                <Button asChild variant="outline" size="sm" className="w-full">
+                  <Link href={`/crm/leads/${survey.leadId}`}>View Lead</Link>
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
 
-        {isComplete ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Recommendations</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <p>Capacity: {formatCapacity(survey.recommendedCapacityKw ?? 0)}</p>
-              <p>Panels: {survey.panelCount} Nos</p>
-              {survey.shadowAnalysis ? <p className="text-muted-foreground">{survey.shadowAnalysis}</p> : null}
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Complete survey</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleComplete} className="space-y-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <Label>Recommended kW</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={capacityKw}
-                      onChange={(e) => setCapacityKw(e.target.value)}
-                      placeholder={String(survey.lead?.expectedCapacityKw ?? '5')}
-                      required
+        {/* Results or completion form */}
+        <div className="lg:col-span-2">
+          {isComplete ? (
+            <Card className="border-emerald-200 bg-emerald-50/30 dark:border-emerald-800/30 dark:bg-emerald-950/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                  <CheckCircle2 className="size-4" />
+                  Survey Results
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="rounded-xl border border-emerald-200 bg-white px-4 py-3 dark:border-emerald-800/30 dark:bg-emerald-950/20">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Zap className="size-3 text-amber-500" /> Recommended
+                    </p>
+                    <p className="mt-1 text-xl font-bold text-emerald-700 dark:text-emerald-400">
+                      {formatCapacity(survey.recommendedCapacityKw ?? 0)}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-border/60 bg-white px-4 py-3 dark:bg-card">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Sun className="size-3 text-amber-500" /> Panels
+                    </p>
+                    <p className="mt-1 text-xl font-bold">{survey.panelCount} <span className="text-sm font-normal text-muted-foreground">nos</span></p>
+                  </div>
+                  {survey.rooftopAreaSqFt && (
+                    <div className="rounded-xl border border-border/60 bg-white px-4 py-3 dark:bg-card">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Ruler className="size-3" /> Rooftop
+                      </p>
+                      <p className="mt-1 text-xl font-bold">{survey.rooftopAreaSqFt} <span className="text-sm font-normal text-muted-foreground">sq ft</span></p>
+                    </div>
+                  )}
+                </div>
+                {survey.shadowAnalysis && (
+                  <div className="mt-4 rounded-lg border border-border/50 bg-muted/30 p-3 text-sm text-muted-foreground">
+                    <p className="mb-1 text-xs font-medium text-foreground">Shadow Analysis</p>
+                    {survey.shadowAnalysis}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Complete Survey</CardTitle>
+                <p className="text-xs text-muted-foreground">Record rooftop assessment and system sizing findings</p>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleComplete} className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-1.5">
+                      <Label>Recommended kW <span className="text-red-500">*</span></Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min="0.5"
+                        max="100"
+                        value={capacityKw}
+                        onChange={(e) => setCapacityKw(e.target.value)}
+                        placeholder={String(survey.lead?.expectedCapacityKw ?? '5.0')}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Panel Count <span className="text-red-500">*</span></Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={panelCount}
+                        onChange={(e) => setPanelCount(e.target.value)}
+                        placeholder="10"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Rooftop Area (sq ft)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={rooftopArea}
+                        onChange={(e) => setRooftopArea(e.target.value)}
+                        placeholder="600"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Shadow Analysis</Label>
+                    <Textarea
+                      value={shadowAnalysis}
+                      onChange={(e) => setShadowAnalysis(e.target.value)}
+                      placeholder="Describe shading sources, obstructions, or clear notes…"
+                      rows={2}
+                      className="resize-none"
                     />
                   </div>
-                  <div>
-                    <Label>Panel count</Label>
-                    <Input type="number" value={panelCount} onChange={(e) => setPanelCount(e.target.value)} required />
+                  <div className="space-y-1.5">
+                    <Label>Additional Remarks</Label>
+                    <Textarea
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                      placeholder="Structural notes, recommendations, next steps…"
+                      rows={2}
+                      className="resize-none"
+                    />
                   </div>
-                </div>
-                <div>
-                  <Label>Rooftop area (sq ft)</Label>
-                  <Input type="number" value={rooftopArea} onChange={(e) => setRooftopArea(e.target.value)} />
-                </div>
-                <div>
-                  <Label>Shadow analysis</Label>
-                  <Textarea value={shadowAnalysis} onChange={(e) => setShadowAnalysis(e.target.value)} rows={2} />
-                </div>
-                <Button type="submit" disabled={submitting} className="w-full">
-                  {submitting ? 'Saving…' : 'Mark survey complete'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        )}
+                  <Button type="submit" disabled={submitting} className="w-full bg-emerald-600 hover:bg-emerald-700">
+                    <CheckCircle2 className="mr-2 size-4" />
+                    {submitting ? 'Saving…' : 'Mark Survey Complete'}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   );

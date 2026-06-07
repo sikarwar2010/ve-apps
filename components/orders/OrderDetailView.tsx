@@ -19,11 +19,17 @@ import type { Id } from '@/convex/_generated/dataModel';
 import { ORDER_STATUS } from '@/utils/constants';
 import { formatCapacity, formatCurrency, formatDate } from '@/utils/formatters';
 import { useMutation, useQuery } from 'convex/react';
-import { Ban, ChevronDown, Trash2 } from 'lucide-react';
+import { Ban, ChevronDown, CheckCircle2, Clock, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
+
+const MILESTONE_STATUS_CONFIG = {
+  pending: { label: 'Pending', tone: 'amber' },
+  partial: { label: 'Partial', tone: 'blue' },
+  paid:    { label: 'Paid',    tone: 'green' },
+} as const;
 
 export function OrderDetailView({ orderId }: { orderId: Id<'salesOrders'> }) {
   const router = useRouter();
@@ -56,17 +62,9 @@ export function OrderDetailView({ orderId }: { orderId: Id<'salesOrders'> }) {
       await updateOrder({
         orderId,
         status: status as
-          | 'draft'
-          | 'confirmed'
-          | 'in_procurement'
-          | 'ready_for_dispatch'
-          | 'dispatched'
-          | 'installation_pending'
-          | 'installed'
-          | 'net_meter_pending'
-          | 'subsidy_pending'
-          | 'completed'
-          | 'cancelled',
+          | 'draft' | 'confirmed' | 'in_procurement' | 'ready_for_dispatch' | 'dispatched'
+          | 'installation_pending' | 'installed' | 'net_meter_pending' | 'subsidy_pending'
+          | 'completed' | 'cancelled',
       });
       toast.success('Order status updated');
     } catch (err) {
@@ -110,6 +108,10 @@ export function OrderDetailView({ orderId }: { orderId: Id<'salesOrders'> }) {
     }
   }
 
+  const paidMilestones = order.paymentSchedule.filter((m) => m.status === 'paid').length;
+  const totalMilestones = order.paymentSchedule.length;
+  const progressPct = totalMilestones > 0 ? Math.round((paidMilestones / totalMilestones) * 100) : 0;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -117,28 +119,28 @@ export function OrderDetailView({ orderId }: { orderId: Id<'salesOrders'> }) {
         description={`${order.customer?.name ?? 'Customer'} · Confirmed ${formatDate(order.orderDate)}`}
         breadcrumbs={[{ label: 'Sales Orders', href: '/orders' }, { label: order.orderNumber }]}
         actions={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={order.status} config={ORDER_STATUS} />
-            {order.quotationId ? (
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/quotations/${order.quotationId}`}>View quotation</Link>
-              </Button>
-            ) : null}
-            {order.leadId ? (
+            {order.quotationId && (
               <Button asChild variant="ghost" size="sm">
-                <Link href={`/crm/leads/${order.leadId}`}>View lead</Link>
+                <Link href={`/quotations/${order.quotationId}`}>View Quotation</Link>
               </Button>
-            ) : null}
-            {canCancel ? (
+            )}
+            {order.leadId && (
+              <Button asChild variant="ghost" size="sm">
+                <Link href={`/crm/leads/${order.leadId}`}>View Lead</Link>
+              </Button>
+            )}
+            {canCancel && (
               <>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm">
-                      Update status
-                      <ChevronDown className="ml-1 size-4" />
+                      Update Status
+                      <ChevronDown className="ml-1 size-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="w-52">
                     {statusOptions.map((status) => (
                       <DropdownMenuItem key={status} onClick={() => void handleStatusChange(status)}>
                         {ORDER_STATUS[status]?.label ?? status}
@@ -151,113 +153,131 @@ export function OrderDetailView({ orderId }: { orderId: Id<'salesOrders'> }) {
                   Cancel
                 </Button>
               </>
-            ) : null}
-            {canDelete ? (
+            )}
+            {canDelete && (
               <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
-                <Trash2 className="mr-1.5 size-4" />
-                Delete
+                <Trash2 className="size-4" />
               </Button>
-            ) : null}
+            )}
           </div>
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-sm">Order summary</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-3 text-sm">
-            <div>
-              <p className="text-xs text-muted-foreground">Customer</p>
-              <p className="font-semibold">{order.customer?.name}</p>
-              <p className="text-muted-foreground">{order.customer?.mobile}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">From quotation</p>
-              <p className="font-mono text-sm">{order.quotation?.quotationNumber ?? '—'}</p>
-              {order.quotation ? (
-                <p className="text-muted-foreground">{formatCapacity(order.quotation.systemCapacityKw)}</p>
-              ) : null}
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Gross order value</p>
-              <p className="text-lg font-bold">{formatCurrency(order.totalAmount)}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Net payable</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Subsidy (est.)</span>
-              <span className="text-emerald-600">− {formatCurrency(order.subsidyAmountEstimated)}</span>
-            </div>
-            <div className="flex justify-between border-t pt-2 text-base font-bold">
-              <span>Customer pays</span>
-              <span>{formatCurrency(order.netAmount)}</span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Summary tiles */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-border/60 bg-card px-4 py-3">
+          <p className="text-xs text-muted-foreground">Customer</p>
+          <p className="mt-1 text-sm font-bold leading-tight">{order.customer?.name ?? '—'}</p>
+          <p className="text-xs text-muted-foreground">{order.customer?.mobile}</p>
+        </div>
+        <div className="rounded-xl border border-border/60 bg-card px-4 py-3">
+          <p className="text-xs text-muted-foreground">System Capacity</p>
+          <p className="mt-1 text-lg font-bold tabular-nums text-amber-600">
+            {order.quotation ? formatCapacity(order.quotation.systemCapacityKw) : '—'}
+          </p>
+        </div>
+        <div className="rounded-xl border border-border/60 bg-card px-4 py-3">
+          <p className="text-xs text-muted-foreground">Gross Value</p>
+          <p className="mt-1 text-lg font-bold tabular-nums">{formatCurrency(order.totalAmount)}</p>
+        </div>
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 dark:border-emerald-800/40 dark:bg-emerald-950/20">
+          <p className="text-xs text-muted-foreground">Customer Pays</p>
+          <p className="mt-1 text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+            {formatCurrency(order.netAmount)}
+          </p>
+          <p className="text-[11px] text-muted-foreground">−{formatCurrency(order.subsidyAmountEstimated)} subsidy</p>
+        </div>
       </div>
 
-      {canCancel ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Update order</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-wrap items-end gap-3">
-            <div>
-              <Label htmlFor="installDate">Expected installation date</Label>
-              <Input
-                id="installDate"
-                type="date"
-                className="w-auto"
-                value={installDate}
-                onChange={(e) => setInstallDate(e.target.value)}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Payment milestones */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold">Payment Milestones</CardTitle>
+              <span className="text-xs text-muted-foreground">{paidMilestones}/{totalMilestones} paid</span>
+            </div>
+            {/* Progress bar */}
+            <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                style={{ width: `${progressPct}%` }}
               />
             </div>
-            <Button size="sm" onClick={() => void handleInstallDateSave()} disabled={!installDate}>
-              Save date
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Payment milestones</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {order.paymentSchedule.map((m) => (
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {order.paymentSchedule.map((m, i) => (
               <div
                 key={m.milestone}
-                className="flex items-center justify-between rounded-lg border border-border/50 px-4 py-3 text-sm"
+                className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-colors ${
+                  m.status === 'paid'
+                    ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-800/30 dark:bg-emerald-950/20'
+                    : 'border-border/50 bg-card'
+                }`}
               >
-                <div>
-                  <p className="font-medium">{m.milestone}</p>
-                  <p className="text-xs text-muted-foreground">{m.duePct}% of net</p>
+                <div className="flex items-center gap-3">
+                  <div className={`flex size-7 items-center justify-center rounded-full text-xs font-bold ${
+                    m.status === 'paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {m.status === 'paid' ? <CheckCircle2 className="size-4" /> : <Clock className="size-3.5" />}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{m.milestone}</p>
+                    <p className="text-xs text-muted-foreground">{m.duePct}% of net amount</p>
+                  </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold">{formatCurrency(m.dueAmount)}</p>
-                  <StatusBadge
-                    status={m.status}
-                    config={{
-                      pending: { label: 'Pending', tone: 'amber' },
-                      partial: { label: 'Partial', tone: 'blue' },
-                      paid: { label: 'Paid', tone: 'green' },
-                    }}
-                  />
+                  <p className="text-sm font-bold tabular-nums">{formatCurrency(m.dueAmount)}</p>
+                  <StatusBadge status={m.status} config={MILESTONE_STATUS_CONFIG} />
                 </div>
               </div>
             ))}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* Side panel */}
+        <div className="space-y-4">
+          {order.quotationId && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Linked Quotation</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1 text-sm">
+                <p className="font-mono font-medium">{order.quotation?.quotationNumber ?? '—'}</p>
+                {order.quotation && (
+                  <p className="text-muted-foreground">{formatCapacity(order.quotation.systemCapacityKw)}</p>
+                )}
+                <Button asChild variant="outline" size="sm" className="mt-2 w-full">
+                  <Link href={`/quotations/${order.quotationId}`}>View Quotation</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {canCancel && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Installation Date</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="installDate" className="text-xs">Expected Date</Label>
+                  <Input
+                    id="installDate"
+                    type="date"
+                    className="h-8 text-sm"
+                    value={installDate}
+                    onChange={(e) => setInstallDate(e.target.value)}
+                  />
+                </div>
+                <Button size="sm" className="w-full" onClick={() => void handleInstallDateSave()} disabled={!installDate}>
+                  Save Date
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
 
       <ConfirmDeleteDialog
         open={cancelOpen}

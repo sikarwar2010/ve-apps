@@ -7,6 +7,16 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ColumnDef } from '@tanstack/react-table';
 import { formatDistanceToNow } from 'date-fns';
 
+function Initials({ name }: { name: string }) {
+  const parts = name.trim().split(' ');
+  const letters = parts.length >= 2 ? parts[0][0] + parts[parts.length - 1][0] : parts[0].slice(0, 2);
+  return (
+    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold uppercase text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+      {letters}
+    </span>
+  );
+}
+
 export const leadColumns: ColumnDef<Lead>[] = [
   {
     id: 'select',
@@ -26,15 +36,20 @@ export const leadColumns: ColumnDef<Lead>[] = [
   {
     accessorKey: 'leadNumber',
     header: ({ column }) => <DataTableColumnHeader column={column} title="Lead #" />,
-    cell: ({ row }) => <span className="font-mono text-sm font-medium">{row.getValue('leadNumber')}</span>,
+    cell: ({ row }) => (
+      <span className="font-mono text-xs font-medium text-muted-foreground">{row.getValue('leadNumber')}</span>
+    ),
   },
   {
     accessorKey: 'name',
     header: ({ column }) => <DataTableColumnHeader column={column} title="Customer" />,
     cell: ({ row }) => (
-      <div>
-        <div className="font-medium">{row.getValue('name')}</div>
-        <div className="text-xs text-muted-foreground">{row.original.mobile}</div>
+      <div className="flex items-center gap-2.5">
+        <Initials name={row.getValue('name')} />
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">{row.getValue('name')}</p>
+          <p className="font-mono text-[11px] text-muted-foreground">{row.original.mobile}</p>
+        </div>
       </div>
     ),
   },
@@ -52,21 +67,37 @@ export const leadColumns: ColumnDef<Lead>[] = [
   {
     accessorKey: 'expectedCapacityKw',
     header: 'Capacity',
-    cell: ({ row }) => (row.getValue('expectedCapacityKw') ? `${row.getValue('expectedCapacityKw')} kW` : '—'),
+    cell: ({ row }) =>
+      row.getValue('expectedCapacityKw') ? (
+        <span className="font-medium tabular-nums">{row.getValue('expectedCapacityKw')} kW</span>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
   },
   {
     accessorKey: 'city',
-    header: 'City',
+    header: 'Location',
+    cell: ({ row }) => (
+      <span className="text-sm text-muted-foreground">{row.getValue('city')}</span>
+    ),
   },
   {
     accessorKey: 'assignedTo',
-    header: 'Assigned To',
-    cell: ({ row }) => row.original.assignedTo?.name ?? 'Unassigned',
+    header: 'Assigned',
+    cell: ({ row }) => (
+      <span className={row.original.assignedTo ? 'text-sm font-medium' : 'text-sm text-muted-foreground'}>
+        {row.original.assignedTo?.name ?? 'Unassigned'}
+      </span>
+    ),
   },
   {
     accessorKey: 'createdAt',
     header: ({ column }) => <DataTableColumnHeader column={column} title="Created" />,
-    cell: ({ row }) => formatDistanceToNow(new Date(row.getValue('createdAt')), { addSuffix: true }),
+    cell: ({ row }) => (
+      <span className="text-xs text-muted-foreground">
+        {formatDistanceToNow(new Date(row.getValue('createdAt')), { addSuffix: true })}
+      </span>
+    ),
   },
   {
     id: 'actions',
