@@ -67,7 +67,8 @@ function NavLinkItem({ item, pathname }: { item: NavItem; pathname: string }) {
 function NavGroupItem({ item, pathname }: { item: NavItem; pathname: string }) {
   const children = item.children ?? [];
   const childActive = children.some((c) => isPathActive(pathname, c.href));
-  const defaultOpen = childActive || ['Procurement', 'Inventory', 'Accounts'].includes(item.label);
+  const defaultOpen =
+    childActive || ['Procurement', 'Inventory', 'Accounts', 'Service', 'Finance'].includes(item.label);
 
   return (
     <Collapsible defaultOpen={defaultOpen} className="group/collapsible">
