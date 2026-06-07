@@ -68,7 +68,7 @@ export default function TopNav() {
   const pageTitle = breadcrumbs.at(-1)?.label ?? 'Dashboard';
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border/50 bg-background/85 px-3 backdrop-blur-xl md:px-5">
+    <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border/50 bg-background/95 px-3 backdrop-blur-xl md:px-5">
       <div className="flex items-center gap-1 md:gap-0">
         <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground" />
         <span className="text-xs font-medium text-muted-foreground md:hidden">Menu</span>

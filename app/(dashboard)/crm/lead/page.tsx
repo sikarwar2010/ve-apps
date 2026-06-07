@@ -13,7 +13,7 @@ export default function LeadPage() {
         description="Track and manage your sales pipeline"
         breadcrumbs={[{ label: 'CRM' }, { label: 'Leads' }]}
         actions={
-          <Link href="/crm/leads/new">
+          <Link href="/crm/lead/new">
             <Button>
               <Plus className="w-4 h-4 mr-2" />
               New Lead

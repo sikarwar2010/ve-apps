@@ -1,8 +1,8 @@
-
+import { logAudit } from '@/lib/audit';
 import { generateDocumentNumber } from '@/lib/numbering';
 import { v } from 'convex/values';
 import { mutation, query } from '../_generated/server';
-import { logAudit } from '@/lib/audit';
+import { getOrCreateUser } from '../lib/auth';
 
 const leadStatus = v.union(
   v.literal('new'),
@@ -158,11 +158,7 @@ export const createLead = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error('Unauthenticated');
 
-    const user = await ctx.db
-      .query('users')
-      .withIndex('by_clerkId', (q) => q.eq('clerkId', identity.subject))
-      .unique();
-    if (!user) throw new Error('User not found');
+    const user = await getOrCreateUser(ctx);
 
     // Check duplicate mobile
     const existing = await ctx.db
@@ -205,10 +201,7 @@ export const updateLeadStatus = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error('Unauthenticated');
 
-    const user = await ctx.db
-      .query('users')
-      .withIndex('by_clerkId', (q) => q.eq('clerkId', identity.subject))
-      .unique();
+    const user = await getOrCreateUser(ctx);
 
     const lead = await ctx.db.get(args.leadId);
     if (!lead) throw new Error('Lead not found');
@@ -225,12 +218,12 @@ export const updateLeadStatus = mutation({
       type: 'status_change',
       content: `Status changed from ${oldStatus} to ${args.status}`,
       outcome: args.remarks,
-      doneByUserId: user!._id,
+      doneByUserId: user._id,
       createdAt: Date.now(),
     });
 
     await logAudit(ctx, {
-      userId: user!._id,
+      userId: user._id,
       action: 'status_change',
       entityType: 'leads',
       entityId: args.leadId as string,
@@ -251,10 +244,7 @@ export const addLeadActivity = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error('Unauthenticated');
-    const user = await ctx.db
-      .query('users')
-      .withIndex('by_clerkId', (q) => q.eq('clerkId', identity.subject))
-      .unique();
+    const user = await getOrCreateUser(ctx);
 
     return ctx.db.insert('leadActivities', {
       leadId: args.leadId,
@@ -262,7 +252,7 @@ export const addLeadActivity = mutation({
       content: args.content,
       outcome: args.outcome,
       followUpAt: args.followUpAt,
-      doneByUserId: user!._id,
+      doneByUserId: user._id,
       createdAt: Date.now(),
     });
   },

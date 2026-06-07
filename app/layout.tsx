@@ -1,4 +1,5 @@
 import ConvexClientProvider from '@/components/providers/ConvexClientProvider';
+import { UserBootstrap } from '@/components/providers/UserBootstrap';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ClerkProvider } from '@clerk/nextjs';
@@ -37,6 +38,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <ClerkProvider ui={ui}>
           <ConvexClientProvider>
+            <UserBootstrap />
             <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
               <TooltipProvider>
                 {children}

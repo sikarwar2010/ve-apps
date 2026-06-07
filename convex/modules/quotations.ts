@@ -2,6 +2,7 @@ import { v } from 'convex/values';
 
 import { generateDocumentNumber } from '@/lib/numbering';
 import { mutation } from '../_generated/server';
+import { getOrCreateUser } from '../lib/auth';
 
 export const createQuotation = mutation({
   args: {
@@ -20,10 +21,7 @@ export const createQuotation = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error('Unauthenticated');
-    const user = await ctx.db
-      .query('users')
-      .withIndex('by_clerkId', (q) => q.eq('clerkId', identity.subject))
-      .unique();
+    const user = await getOrCreateUser(ctx);
 
     // Calculate financials
     let subtotal = 0,

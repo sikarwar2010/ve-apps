@@ -1,5 +1,7 @@
 import { v } from 'convex/values';
-import { query } from '../_generated/server';
+
+import { mutation, query } from '../_generated/server';
+import { getOrCreateUser } from '../lib/auth';
 
 export const getUserByClerkId = query({
   args: { clerkId: v.string() },
@@ -13,5 +15,13 @@ export const getUserByClerkId = query({
       .query('users')
       .withIndex('by_clerkId', (q) => q.eq('clerkId', args.clerkId))
       .unique();
+  },
+});
+
+export const ensureCurrentUser = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getOrCreateUser(ctx);
+    return user._id;
   },
 });

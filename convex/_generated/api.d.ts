@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as lib_auth from "../lib/auth.js";
 import type * as modules_lead from "../modules/lead.js";
 import type * as modules_quotations from "../modules/quotations.js";
 import type * as modules_users from "../modules/users.js";
@@ -19,6 +20,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "lib/auth": typeof lib_auth;
   "modules/lead": typeof modules_lead;
   "modules/quotations": typeof modules_quotations;
   "modules/users": typeof modules_users;
