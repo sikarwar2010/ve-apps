@@ -35,7 +35,7 @@ export function LeadTimeline({ activities }: { activities: Activity[] }) {
         return (
           <li key={activity._id} className="relative flex gap-4 pb-6 last:pb-0">
             {index < activities.length - 1 ? (
-              <span className="absolute top-8 left-[15px] h-[calc(100%-8px)] w-px bg-border/60" />
+              <span className="absolute top-8 left-3.75 h-[calc(100%-8px)] w-px bg-border/60" />
             ) : null}
             <span className="relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background">
               <Icon className="size-3.5 text-muted-foreground" />
