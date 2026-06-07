@@ -4,44 +4,127 @@ import { ModeToggle } from '@/components/providers/modetoggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { useSidebarStore } from '@/stores/sidebarStore';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import { UserButton } from '@clerk/nextjs';
-import { Bell, PanelLeft, Search } from 'lucide-react';
+import { Bell, ChevronRight, Home, Search, Sparkles } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+
+const ROUTE_LABELS: Record<string, string> = {
+  crm: 'CRM',
+  lead: 'Leads',
+  customers: 'Customers',
+  survey: 'Site Survey',
+  quotations: 'Quotations',
+  orders: 'Sales Orders',
+  procurement: 'Procurement',
+  requisitions: 'Requisitions',
+  rfq: 'RFQ',
+  'purchase-orders': 'Purchase Orders',
+  grn: 'GRN',
+  inventory: 'Inventory',
+  movements: 'Movements',
+  'stock-transfer': 'Transfers',
+  dispatch: 'Dispatch',
+  installation: 'Installation',
+  'net-meter': 'Net Meter',
+  subsidy: 'PM Surya Subsidy',
+  finance: 'Finance',
+  invoices: 'Invoices',
+  payments: 'Payments',
+  ledger: 'Ledger',
+  service: 'After-Sales',
+  tickets: 'Service Tickets',
+  warranty: 'Warranty',
+  reports: 'Reports',
+  documents: 'Documents',
+  'audit-logs': 'Audit Logs',
+  settings: 'Settings',
+};
+
+function toLabel(seg: string) {
+  return ROUTE_LABELS[seg] ?? seg.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 export default function TopNav() {
-  const { toggleCollapse } = useSidebarStore();
+  const pathname = usePathname();
+
+  const segments = pathname.split('/').filter(Boolean);
+  const breadcrumbs = segments.map((seg, i) => ({
+    label: toLabel(seg),
+    href: '/' + segments.slice(0, i + 1).join('/'),
+    isLast: i === segments.length - 1,
+  }));
+
+  const pageTitle = breadcrumbs.at(-1)?.label ?? 'Dashboard';
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md md:px-6">
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        className="text-muted-foreground hover:text-foreground"
-        onClick={toggleCollapse}
-        aria-label="Toggle sidebar"
-      >
-        <PanelLeft className="size-4" />
-      </Button>
-
-      <div className="relative hidden min-w-0 flex-1 md:block md:max-w-md">
-        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="search"
-          placeholder="Search leads, customers, orders…"
-          className="h-8 border-border/60 bg-muted/40 pl-8 text-sm shadow-none"
-        />
+    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border/50 bg-background/85 px-3 backdrop-blur-xl md:px-5">
+      <div className="flex items-center gap-1 md:gap-0">
+        <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground" />
+        <span className="text-xs font-medium text-muted-foreground md:hidden">Menu</span>
       </div>
 
-      <div className="ml-auto flex items-center gap-1.5">
+      <Separator orientation="vertical" className="mr-1 hidden h-5 opacity-40 sm:block" />
+
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <p className="truncate text-sm font-semibold tracking-tight sm:hidden">{pageTitle}</p>
+        <div className="hidden min-w-0 flex-1 flex-col justify-center sm:flex">
+          <p className="truncate text-sm font-semibold tracking-tight text-foreground">{pageTitle}</p>
+          <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-0.5 text-xs text-muted-foreground">
+            <Link
+              href="/"
+              className="flex shrink-0 items-center rounded-sm p-0.5 transition-colors hover:text-foreground"
+              aria-label="Dashboard home"
+            >
+              <Home className="size-3" />
+            </Link>
+            {breadcrumbs.map((crumb) => (
+              <span key={crumb.href} className="flex min-w-0 items-center gap-0.5">
+                <ChevronRight className="size-3 shrink-0 opacity-40" />
+                {crumb.isLast ? (
+                  <span className="truncate font-medium text-muted-foreground">{crumb.label}</span>
+                ) : (
+                  <Link href={crumb.href} className="truncate transition-colors hover:text-foreground">
+                    {crumb.label}
+                  </Link>
+                )}
+              </span>
+            ))}
+          </nav>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-0.5 sm:gap-1">
+        <div className="relative hidden lg:block">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground/50" />
+          <Input
+            type="search"
+            placeholder="Search leads, customers, orders…"
+            className="h-9 w-56 border-border/50 bg-muted/35 pl-9 text-sm shadow-none transition-[width,box-shadow] duration-200 focus-visible:w-72 focus-visible:bg-background focus-visible:ring-1 xl:w-64 xl:focus-visible:w-80"
+          />
+          <kbd className="pointer-events-none absolute top-1/2 right-2.5 hidden -translate-y-1/2 rounded border border-border/60 bg-background/80 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground/70 xl:inline">
+            ⌘K
+          </kbd>
+        </div>
         <Button
           type="button"
           variant="ghost"
           size="icon-sm"
-          className="text-muted-foreground hover:text-foreground md:hidden"
+          className="text-muted-foreground hover:text-foreground lg:hidden"
           aria-label="Search"
         >
           <Search className="size-4" />
+        </Button>
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="hidden gap-1.5 text-muted-foreground hover:text-foreground md:inline-flex"
+        >
+          <Sparkles className="size-3.5 text-amber-500" />
+          <span className="text-xs font-medium">Ask AI</span>
         </Button>
 
         <Button
@@ -52,17 +135,19 @@ export default function TopNav() {
           aria-label="Notifications"
         >
           <Bell className="size-4" />
-          <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-amber-500" />
+          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white ring-2 ring-background">
+            3
+          </span>
         </Button>
 
         <ModeToggle />
 
-        <Separator orientation="vertical" className="mx-1 hidden h-5 sm:block" />
+        <Separator orientation="vertical" className="mx-1 hidden h-5 opacity-40 sm:block" />
 
         <UserButton
           appearance={{
             elements: {
-              avatarBox: 'size-8',
+              avatarBox: 'size-8 ring-2 ring-border/60 ring-offset-2 ring-offset-background',
             },
           }}
         />
