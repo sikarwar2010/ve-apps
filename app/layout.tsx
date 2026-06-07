@@ -1,6 +1,7 @@
 import ConvexClientProvider from '@/components/providers/ConvexClientProvider';
-import { UserBootstrap } from '@/components/providers/UserBootstrap';
+import { OrgBootstrap } from '@/components/providers/OrgBootstrap';
 import { ThemeProvider } from '@/components/providers/theme-provider';
+import { UserBootstrap } from '@/components/providers/UserBootstrap';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ClerkProvider } from '@clerk/nextjs';
 import { ui } from '@clerk/ui';
@@ -20,8 +21,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Ve Apps',
-  description: 'Ve Apps',
+  title: 'SuryaERP',
+  description: 'PM Surya Ghar solar dealership ERP/CRM',
 };
 
 export default function RootLayout({
@@ -39,6 +40,7 @@ export default function RootLayout({
         <ClerkProvider ui={ui}>
           <ConvexClientProvider>
             <UserBootstrap />
+            <OrgBootstrap />
             <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
               <TooltipProvider>
                 {children}

@@ -1,5 +1,6 @@
 'use client';
 
+import { NotificationCenter } from '@/components/layout/NotificationCenter';
 import { ModeToggle } from '@/components/providers/modetoggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,12 +10,13 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { getRoleLabel } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import { UserButton, useUser } from '@clerk/nextjs';
-import { Bell, ChevronRight, Home, Search } from 'lucide-react';
+import { ChevronRight, Home, Search } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const ROUTE_LABELS: Record<string, string> = {
   crm: 'CRM',
+  leads: 'Leads',
   lead: 'Leads',
   customers: 'Customers',
   survey: 'Site Survey',
@@ -126,18 +128,7 @@ export default function TopNav() {
           <Search className="size-4" />
         </Button>
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="relative text-muted-foreground hover:text-foreground"
-          aria-label="Notifications"
-        >
-          <Bell className="size-4" />
-          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white ring-2 ring-background">
-            3
-          </span>
-        </Button>
+        <NotificationCenter />
 
         <ModeToggle />
 

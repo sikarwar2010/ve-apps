@@ -898,6 +898,15 @@ export default defineSchema({
     .index('by_technician', ['assignedTechnicianId']),
 
   // ============================================================
+  // DOCUMENT NUMBERING
+  // ============================================================
+  documentCounters: defineTable({
+    prefix: v.string(),
+    lastNumber: v.number(),
+    updatedAt: v.number(),
+  }).index('by_prefix', ['prefix']),
+
+  // ============================================================
   // AUDIT LOGS
   // ============================================================
   auditLogs: defineTable({

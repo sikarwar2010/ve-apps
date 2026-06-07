@@ -1,8 +1,8 @@
-import { logAudit } from '@/lib/audit';
-import { generateDocumentNumber } from '@/lib/numbering';
 import { v } from 'convex/values';
 import { mutation, query } from '../_generated/server';
+import { logAudit } from '../lib/audit';
 import { getOrCreateUser } from '../lib/auth';
+import { generateDocumentNumber } from '../lib/numbering';
 
 const leadStatus = v.union(
   v.literal('new'),
@@ -94,11 +94,18 @@ export const getLeadById = query({
     const lead = await ctx.db.get(args.leadId);
     if (!lead) return null;
 
-    const activities = await ctx.db
+    const activitiesRaw = await ctx.db
       .query('leadActivities')
       .withIndex('by_lead', (q) => q.eq('leadId', args.leadId))
       .order('desc')
       .collect();
+
+    const activities = await Promise.all(
+      activitiesRaw.map(async (activity) => {
+        const doneBy = activity.doneByUserId ? await ctx.db.get(activity.doneByUserId) : null;
+        return { ...activity, doneBy };
+      }),
+    );
 
     const assignedTo = lead.assignedToUserId ? await ctx.db.get(lead.assignedToUserId) : null;
 

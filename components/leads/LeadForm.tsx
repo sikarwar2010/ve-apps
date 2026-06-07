@@ -367,7 +367,7 @@ export function LeadForm() {
         discomName: formValues.discomName || undefined,
       });
       toast.success('Lead created successfully');
-      router.push('/crm/lead');
+      router.push('/crm/leads');
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : 'Failed to create lead');
     }
@@ -389,7 +389,7 @@ export function LeadForm() {
 
               <div className="relative flex flex-1 flex-col">
                 <Link
-                  href="/crm/lead"
+                  href="/crm/leads"
                   className="mb-6 inline-flex w-fit items-center gap-1.5 text-xs text-white/55 transition-colors hover:text-white"
                 >
                   <ArrowLeft className="size-3.5" />
@@ -779,7 +779,7 @@ export function LeadForm() {
                     type="button"
                     variant="ghost"
                     className="rounded-xl"
-                    onClick={() => (stepIndex === 0 ? router.push('/crm/lead') : goToStep(stepIndex - 1))}
+                    onClick={() => (stepIndex === 0 ? router.push('/crm/leads') : goToStep(stepIndex - 1))}
                   >
                     <ArrowLeft className="mr-1.5 size-4" />
                     {stepIndex === 0 ? 'Cancel' : 'Back'}

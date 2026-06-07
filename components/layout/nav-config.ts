@@ -44,7 +44,7 @@ export const NAV_STRUCTURE: NavGroup[] = [
   {
     section: 'CRM',
     items: [
-      { label: 'Leads', href: '/crm/lead', icon: Users, permission: 'leads:view', badge: 'live' },
+      { label: 'Leads', href: '/crm/leads', icon: Users, permission: 'leads:view', badge: 'live' },
       { label: 'Customers', href: '/crm/customers', icon: UserCircle, permission: 'customers:view' },
     ],
   },

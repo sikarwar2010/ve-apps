@@ -1,5 +1,5 @@
-import { LeadForm } from '@/components/leads/LeadForm';
+import { redirect } from 'next/navigation';
 
-export default function NewLeadPage() {
-  return <LeadForm />;
+export default function LegacyNewLeadRedirect() {
+  redirect('/crm/leads/new');
 }
