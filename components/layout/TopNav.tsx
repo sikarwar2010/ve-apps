@@ -149,24 +149,7 @@ export default function TopNav() {
             'transition-colors hover:bg-muted/50',
           )}
         >
-          <UserButton
-            appearance={{
-              variables: {
-                borderRadius: '0.625rem',
-                colorPrimary: '#f59e0b',
-                colorText: 'hsl(var(--foreground))',
-                colorTextSecondary: 'hsl(var(--muted-foreground))',
-              },
-              elements: {
-                avatarBox: 'size-8 rounded-lg shadow-sm ring-1 ring-border/60',
-                userButtonPopoverCard:
-                  'rounded-xl border border-border/60 bg-popover shadow-xl [&_.cl-userButtonPopoverActionButton]:rounded-lg',
-                userButtonPopoverActionButton: 'rounded-lg text-sm',
-                userButtonPopoverActionButtonText: 'text-sm',
-                userButtonPopoverFooter: 'hidden',
-              },
-            }}
-          />
+          <UserButton />
           <div className="hidden min-w-0 flex-col sm:flex">
             <span className="truncate text-xs font-semibold leading-tight text-foreground">{displayName}</span>
             <span className="truncate text-[10px] leading-tight text-muted-foreground">
