@@ -5,6 +5,7 @@ import { ConvertCustomerDialog } from '@/components/leads/ConvertCustomerDialog'
 import { LeadSourceBadge } from '@/components/leads/LeadSourceBadge';
 import { LeadStatusBadge } from '@/components/leads/LeadStatusBadge';
 import { LeadTimeline } from '@/components/leads/LeadTimeline';
+import { ConfirmDeleteDialog } from '@/components/shared/ConfirmDeleteDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -21,7 +22,7 @@ import type { Id } from '@/convex/_generated/dataModel';
 import { calculatePMSuryaSubsidy } from '@/lib/subsidyCalculator';
 import { formatCapacity, formatCurrency, formatDate } from '@/utils/formatters';
 import { useMutation, useQuery } from 'convex/react';
-import { ChevronDown, FileText, MapPin, Phone, Zap } from 'lucide-react';
+import { ChevronDown, FileText, MapPin, Pencil, Phone, Trash2, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -48,8 +49,11 @@ export function LeadDetailView({ leadId }: LeadDetailViewProps) {
   const lead = useQuery(api.modules.lead.getLeadById, { leadId });
   const updateStatus = useMutation(api.modules.lead.updateLeadStatus);
   const addActivity = useMutation(api.modules.lead.addLeadActivity);
+  const deleteLead = useMutation(api.modules.lead.deleteLead);
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   if (lead === undefined) {
     return (
@@ -96,6 +100,20 @@ export function LeadDetailView({ leadId }: LeadDetailViewProps) {
     }
   }
 
+  async function handleDelete() {
+    setDeleteLoading(true);
+    try {
+      const result = await deleteLead({ leadId });
+      toast.success(result.deleted ? 'Lead deleted' : 'Lead marked as lost');
+      setDeleteOpen(false);
+      router.push('/crm/leads');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Delete failed');
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -137,8 +155,28 @@ export function LeadDetailView({ leadId }: LeadDetailViewProps) {
             <Button variant="ghost" size="sm" onClick={() => router.push('/crm/leads')}>
               Back
             </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/crm/leads/${leadId}/edit`}>
+                <Pencil className="mr-1.5 size-4" />
+                Edit
+              </Link>
+            </Button>
+            <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="mr-1.5 size-4" />
+              Delete
+            </Button>
           </div>
         }
+      />
+
+      <ConfirmDeleteDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Remove lead?"
+        description="Lead will be deleted if no quotations exist, otherwise marked as lost."
+        confirmLabel="Remove"
+        loading={deleteLoading}
+        onConfirm={handleDelete}
       />
 
       <div className="grid gap-4 lg:grid-cols-3">

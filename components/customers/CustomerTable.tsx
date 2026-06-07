@@ -1,5 +1,6 @@
 'use client';
 
+import { CustomerActions } from '@/components/customers/CustomerActions';
 import { DataTable } from '@/components/data-table/DataTable';
 import { DataTableColumnHeader } from '@/components/data-table/DataTableColumnHeader';
 import { StatusBadge } from '@/components/status/StatusBadge';
@@ -45,6 +46,10 @@ const columns: ColumnDef<Customer>[] = [
     accessorKey: 'createdAt',
     header: 'Created',
     cell: ({ row }) => formatDate(row.getValue('createdAt')),
+  },
+  {
+    id: 'actions',
+    cell: ({ row }) => <CustomerActions customer={row.original} />,
   },
 ];
 

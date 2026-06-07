@@ -2,6 +2,7 @@
 
 import { DataTable } from '@/components/data-table/DataTable';
 import { DataTableColumnHeader } from '@/components/data-table/DataTableColumnHeader';
+import { QuotationActions } from '@/components/quotations/QuotationActions';
 import { StatusBadge } from '@/components/status/StatusBadge';
 import { Spinner } from '@/components/ui/spinner';
 import { api } from '@/convex/_generated/api';
@@ -50,6 +51,10 @@ const columns: ColumnDef<Quotation>[] = [
     accessorKey: 'validTill',
     header: 'Valid Till',
     cell: ({ row }) => formatDate(row.getValue('validTill')),
+  },
+  {
+    id: 'actions',
+    cell: ({ row }) => <QuotationActions quotation={row.original} />,
   },
 ];
 

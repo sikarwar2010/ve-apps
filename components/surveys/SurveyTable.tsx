@@ -3,6 +3,7 @@
 import { DataTable } from '@/components/data-table/DataTable';
 import { DataTableColumnHeader } from '@/components/data-table/DataTableColumnHeader';
 import { StatusBadge } from '@/components/status/StatusBadge';
+import { SurveyActions } from '@/components/surveys/SurveyActions';
 import { Spinner } from '@/components/ui/spinner';
 import { api } from '@/convex/_generated/api';
 import { SURVEY_STATUS } from '@/utils/constants';
@@ -44,6 +45,10 @@ const columns: ColumnDef<Survey>[] = [
     accessorKey: 'scheduledAt',
     header: 'Scheduled',
     cell: ({ row }) => formatDateTime(row.getValue('scheduledAt')),
+  },
+  {
+    id: 'actions',
+    cell: ({ row }) => <SurveyActions survey={row.original} />,
   },
 ];
 

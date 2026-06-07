@@ -2,6 +2,7 @@
 
 import { DataTable } from '@/components/data-table/DataTable';
 import { DataTableColumnHeader } from '@/components/data-table/DataTableColumnHeader';
+import { OrderActions } from '@/components/orders/OrderActions';
 import { StatusBadge } from '@/components/status/StatusBadge';
 import { Spinner } from '@/components/ui/spinner';
 import { api } from '@/convex/_generated/api';
@@ -44,6 +45,10 @@ const columns: ColumnDef<Order>[] = [
     accessorKey: 'orderDate',
     header: 'Order Date',
     cell: ({ row }) => formatDate(row.getValue('orderDate')),
+  },
+  {
+    id: 'actions',
+    cell: ({ row }) => <OrderActions order={row.original} />,
   },
 ];
 

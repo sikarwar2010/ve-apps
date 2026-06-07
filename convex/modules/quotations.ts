@@ -395,3 +395,74 @@ export const createQuotation = mutation({
     return quotationId;
   },
 });
+
+export const updateQuotation = mutation({
+  args: {
+    quotationId: v.id('quotations'),
+    systemCapacityKw: v.optional(v.number()),
+    panelCount: v.optional(v.number()),
+    validTill: v.optional(v.number()),
+    termsAndConditions: v.optional(v.string()),
+    tokenAmountPct: v.optional(v.number()),
+    onDeliveryPct: v.optional(v.number()),
+    onInstallationPct: v.optional(v.number()),
+    onSubsidyPct: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const user = await getOrCreateUser(ctx);
+    const quotation = await ctx.db.get(args.quotationId);
+    if (!quotation) throw new Error('Quotation not found');
+    if (quotation.status !== 'draft' && quotation.status !== 'under_negotiation') {
+      throw new Error('Only draft quotations can be edited');
+    }
+
+    const { quotationId, ...updates } = args;
+    const patch: Record<string, unknown> = { updatedAt: Date.now() };
+    for (const [key, val] of Object.entries(updates)) {
+      if (val !== undefined) patch[key] = val;
+    }
+
+    if (updates.systemCapacityKw) {
+      const kw = updates.systemCapacityKw;
+      let subsidyAmount = 0;
+      let subsidyCategory: 'upto_2kw' | '2_3kw' | 'above_3kw' = 'upto_2kw';
+      if (kw <= 2) subsidyAmount = kw * 30000;
+      else if (kw <= 3) subsidyAmount = 2 * 30000 + (kw - 2) * 18000;
+      else {
+        subsidyAmount = 78000;
+        subsidyCategory = 'above_3kw';
+      }
+      patch.subsidyEligibleCapacityKw = Math.min(kw, 3);
+      patch.subsidyCategory = subsidyCategory;
+      patch.subsidyAmountEstimated = subsidyAmount;
+      patch.netAmountAfterSubsidy = quotation.totalAmount - subsidyAmount;
+    }
+
+    await ctx.db.patch(quotationId, patch);
+    await logAudit(ctx, {
+      userId: user._id,
+      action: 'update',
+      entityType: 'quotations',
+      entityId: quotationId as string,
+      newValues: patch,
+    });
+  },
+});
+
+export const deleteQuotation = mutation({
+  args: { quotationId: v.id('quotations') },
+  handler: async (ctx, args) => {
+    const user = await getOrCreateUser(ctx);
+    const quotation = await ctx.db.get(args.quotationId);
+    if (!quotation) throw new Error('Quotation not found');
+    if (quotation.status !== 'draft') throw new Error('Only draft quotations can be deleted');
+
+    await ctx.db.delete(args.quotationId);
+    await logAudit(ctx, {
+      userId: user._id,
+      action: 'delete',
+      entityType: 'quotations',
+      entityId: args.quotationId as string,
+    });
+  },
+});

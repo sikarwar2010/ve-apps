@@ -2,6 +2,7 @@
 
 import PageHeader from '@/components/layout/Pageheader';
 import { QuotationDocument } from '@/components/quotations/QuotationDocument';
+import { ConfirmDeleteDialog } from '@/components/shared/ConfirmDeleteDialog';
 import { StatusBadge } from '@/components/status/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -10,9 +11,10 @@ import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { QUOTATION_STATUS } from '@/utils/constants';
 import { useMutation, useQuery } from 'convex/react';
-import { CheckCircle2, FileText, Printer, Send, ShoppingCart } from 'lucide-react';
+import { CheckCircle2, FileText, Pencil, Printer, Send, ShoppingCart, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { toast } from 'sonner';
 
 export function QuotationDetailView({ quotationId }: { quotationId: Id<'quotations'> }) {
@@ -22,6 +24,9 @@ export function QuotationDetailView({ quotationId }: { quotationId: Id<'quotatio
   const sendQuotation = useMutation(api.modules.quotations.sendQuotation);
   const updateStatus = useMutation(api.modules.quotations.updateQuotationStatus);
   const convertToOrder = useMutation(api.modules.quotations.convertToOrder);
+  const deleteQuotation = useMutation(api.modules.quotations.deleteQuotation);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   if (quotation === undefined || document === undefined) {
     return (
@@ -76,10 +81,25 @@ export function QuotationDetailView({ quotationId }: { quotationId: Id<'quotatio
     window.print();
   }
 
+  async function handleDelete() {
+    setDeleteLoading(true);
+    try {
+      await deleteQuotation({ quotationId });
+      toast.success('Quotation deleted');
+      router.push('/quotations');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Delete failed');
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
   const canSend = quotation.status === 'draft' || quotation.status === 'under_negotiation';
   const canApprove = quotation.status === 'sent' || quotation.status === 'under_negotiation';
   const canOrder = quotation.status === 'approved';
   const isConverted = quotation.status === 'converted_to_order';
+  const canEdit = quotation.status === 'draft' || quotation.status === 'under_negotiation';
+  const canDelete = quotation.status === 'draft';
 
   return (
     <div className="space-y-6">
@@ -123,8 +143,31 @@ export function QuotationDetailView({ quotationId }: { quotationId: Id<'quotatio
                 <Link href="/orders">View orders</Link>
               </Button>
             ) : null}
+            {canEdit ? (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/quotations/${quotationId}/edit`}>
+                  <Pencil className="mr-1.5 size-4" />
+                  Edit
+                </Link>
+              </Button>
+            ) : null}
+            {canDelete ? (
+              <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}>
+                <Trash2 className="mr-1.5 size-4" />
+                Delete
+              </Button>
+            ) : null}
           </div>
         }
+      />
+
+      <ConfirmDeleteDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete quotation?"
+        description="Draft quotation will be permanently removed."
+        loading={deleteLoading}
+        onConfirm={handleDelete}
       />
 
       <Tabs defaultValue="document">

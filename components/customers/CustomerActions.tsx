@@ -1,6 +1,5 @@
 'use client';
 
-import type { Lead } from '@/components/leads/types';
 import { ConfirmDeleteDialog } from '@/components/shared/ConfirmDeleteDialog';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { api } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
 import { useMutation } from 'convex/react';
 import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
@@ -19,19 +19,25 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-export function LeadActions({ lead }: { lead: Lead }) {
+type CustomerRow = {
+  _id: Id<'customers'>;
+  customerNumber: string;
+  name: string;
+};
+
+export function CustomerActions({ customer }: { customer: CustomerRow }) {
   const router = useRouter();
-  const deleteLead = useMutation(api.modules.lead.deleteLead);
+  const deleteCustomer = useMutation(api.modules.customers.deleteCustomer);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function handleDelete() {
     setLoading(true);
     try {
-      const result = await deleteLead({ leadId: lead._id });
-      toast.success(result.deleted ? 'Lead deleted' : 'Lead marked as lost');
+      await deleteCustomer({ customerId: customer._id });
+      toast.success('Customer deactivated');
       setDeleteOpen(false);
-      if (result.deleted) router.refresh();
+      router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Delete failed');
     } finally {
@@ -52,21 +58,21 @@ export function LeadActions({ lead }: { lead: Lead }) {
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <Link href={`/crm/leads/${lead._id}`}>
+            <Link href={`/crm/customers/${customer._id}`}>
               <Eye />
               View details
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href={`/crm/leads/${lead._id}/edit`}>
+            <Link href={`/crm/customers/${customer._id}/edit`}>
               <Pencil />
-              Edit lead
+              Edit customer
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteOpen(true)}>
             <Trash2 />
-            Delete / mark lost
+            Deactivate
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -74,9 +80,9 @@ export function LeadActions({ lead }: { lead: Lead }) {
       <ConfirmDeleteDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title="Remove lead?"
-        description={`${lead.name} (${lead.leadNumber}) will be deleted if no quotations exist, otherwise marked as lost.`}
-        confirmLabel="Remove"
+        title="Deactivate customer?"
+        description={`${customer.name} (${customer.customerNumber}) will be hidden from the customer list. Existing orders are preserved.`}
+        confirmLabel="Deactivate"
         loading={loading}
         onConfirm={handleDelete}
       />

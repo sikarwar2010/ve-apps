@@ -1,6 +1,5 @@
 'use client';
 
-import type { Lead } from '@/components/leads/types';
 import { ConfirmDeleteDialog } from '@/components/shared/ConfirmDeleteDialog';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { api } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
 import { useMutation } from 'convex/react';
 import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
@@ -19,19 +19,28 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-export function LeadActions({ lead }: { lead: Lead }) {
+type QuotationRow = {
+  _id: Id<'quotations'>;
+  quotationNumber: string;
+  status: string;
+};
+
+export function QuotationActions({ quotation }: { quotation: QuotationRow }) {
   const router = useRouter();
-  const deleteLead = useMutation(api.modules.lead.deleteLead);
+  const deleteQuotation = useMutation(api.modules.quotations.deleteQuotation);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const canEdit = quotation.status === 'draft' || quotation.status === 'under_negotiation';
+  const canDelete = quotation.status === 'draft';
 
   async function handleDelete() {
     setLoading(true);
     try {
-      const result = await deleteLead({ leadId: lead._id });
-      toast.success(result.deleted ? 'Lead deleted' : 'Lead marked as lost');
+      await deleteQuotation({ quotationId: quotation._id });
+      toast.success('Quotation deleted');
       setDeleteOpen(false);
-      if (result.deleted) router.refresh();
+      router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Delete failed');
     } finally {
@@ -52,31 +61,36 @@ export function LeadActions({ lead }: { lead: Lead }) {
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <Link href={`/crm/leads/${lead._id}`}>
+            <Link href={`/quotations/${quotation._id}`}>
               <Eye />
               View details
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href={`/crm/leads/${lead._id}/edit`}>
-              <Pencil />
-              Edit lead
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteOpen(true)}>
-            <Trash2 />
-            Delete / mark lost
-          </DropdownMenuItem>
+          {canEdit ? (
+            <DropdownMenuItem asChild>
+              <Link href={`/quotations/${quotation._id}/edit`}>
+                <Pencil />
+                Edit quotation
+              </Link>
+            </DropdownMenuItem>
+          ) : null}
+          {canDelete ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteOpen(true)}>
+                <Trash2 />
+                Delete
+              </DropdownMenuItem>
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
 
       <ConfirmDeleteDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title="Remove lead?"
-        description={`${lead.name} (${lead.leadNumber}) will be deleted if no quotations exist, otherwise marked as lost.`}
-        confirmLabel="Remove"
+        title="Delete quotation?"
+        description={`${quotation.quotationNumber} will be permanently removed.`}
         loading={loading}
         onConfirm={handleDelete}
       />

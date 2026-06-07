@@ -198,6 +198,106 @@ export const createLead = mutation({
   },
 });
 
+export const updateLead = mutation({
+  args: {
+    leadId: v.id('leads'),
+    source: v.optional(leadSource),
+    name: v.optional(v.string()),
+    mobile: v.optional(v.string()),
+    email: v.optional(v.string()),
+    addressLine1: v.optional(v.string()),
+    city: v.optional(v.string()),
+    state: v.optional(v.string()),
+    pincode: v.optional(v.string()),
+    electricityBillAmt: v.optional(v.number()),
+    monthlyConsumptionKwh: v.optional(v.number()),
+    rooftopType,
+    propertyType,
+    discomName: v.optional(v.string()),
+    discomConsumerNo: v.optional(v.string()),
+    expectedCapacityKw: v.optional(v.number()),
+    assignedToUserId: v.optional(v.id('users')),
+    lostReason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await getOrCreateUser(ctx);
+    const lead = await ctx.db.get(args.leadId);
+    if (!lead) throw new Error('Lead not found');
+    if (lead.status === 'won') throw new Error('Cannot edit a won lead');
+
+    const { leadId, ...updates } = args;
+    const patch: Record<string, unknown> = { updatedAt: Date.now() };
+    for (const [key, val] of Object.entries(updates)) {
+      if (val !== undefined) patch[key] = val;
+    }
+
+    if (updates.mobile && updates.mobile !== lead.mobile) {
+      const dup = await ctx.db
+        .query('leads')
+        .withIndex('by_mobile', (q) => q.eq('mobile', updates.mobile!))
+        .first();
+      if (dup && dup._id !== leadId) throw new Error(`Mobile already used by ${dup.leadNumber}`);
+    }
+
+    await ctx.db.patch(leadId, patch);
+
+    await logAudit(ctx, {
+      userId: user._id,
+      action: 'update',
+      entityType: 'leads',
+      entityId: leadId as string,
+      oldValues: lead,
+      newValues: patch,
+    });
+  },
+});
+
+export const deleteLead = mutation({
+  args: { leadId: v.id('leads'), lostReason: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const user = await getOrCreateUser(ctx);
+    const lead = await ctx.db.get(args.leadId);
+    if (!lead) throw new Error('Lead not found');
+
+    const quotations = await ctx.db
+      .query('quotations')
+      .withIndex('by_lead', (q) => q.eq('leadId', args.leadId))
+      .first();
+    if (quotations) throw new Error('Cannot delete lead with quotations. Mark as lost instead.');
+
+    const orders = await ctx.db.query('salesOrders').collect();
+    if (orders.some((o) => o.leadId === args.leadId)) {
+      throw new Error('Cannot delete lead with sales orders.');
+    }
+
+    if (['new', 'contacted', 'lost'].includes(lead.status)) {
+      await ctx.db.delete(args.leadId);
+      await logAudit(ctx, {
+        userId: user._id,
+        action: 'delete',
+        entityType: 'leads',
+        entityId: args.leadId as string,
+        oldValues: lead,
+      });
+      return { deleted: true };
+    }
+
+    await ctx.db.patch(args.leadId, {
+      status: 'lost',
+      lostReason: args.lostReason ?? 'Removed from pipeline',
+      updatedAt: Date.now(),
+    });
+    await logAudit(ctx, {
+      userId: user._id,
+      action: 'soft_delete',
+      entityType: 'leads',
+      entityId: args.leadId as string,
+      newValues: { status: 'lost' },
+    });
+    return { deleted: false, status: 'lost' };
+  },
+});
+
 export const updateLeadStatus = mutation({
   args: {
     leadId: v.id('leads'),

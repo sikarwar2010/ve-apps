@@ -141,3 +141,76 @@ export const completeSurvey = mutation({
     return { success: true };
   },
 });
+
+export const updateSurvey = mutation({
+  args: {
+    surveyId: v.id('surveys'),
+    scheduledAt: v.optional(v.number()),
+    assignedEngineerId: v.optional(v.id('users')),
+    remarks: v.optional(v.string()),
+    status: v.optional(v.union(v.literal('scheduled'), v.literal('in_progress'), v.literal('cancelled'))),
+  },
+  handler: async (ctx, args) => {
+    const user = await getOrCreateUser(ctx);
+    const survey = await ctx.db.get(args.surveyId);
+    if (!survey) throw new Error('Survey not found');
+    if (survey.status === 'completed') throw new Error('Cannot edit completed survey');
+
+    const { surveyId, ...updates } = args;
+    const patch: Record<string, unknown> = { updatedAt: Date.now() };
+    for (const [key, val] of Object.entries(updates)) {
+      if (val !== undefined) patch[key] = val;
+    }
+    await ctx.db.patch(surveyId, patch);
+
+    await logAudit(ctx, {
+      userId: user._id,
+      action: 'update',
+      entityType: 'surveys',
+      entityId: surveyId as string,
+      newValues: patch,
+    });
+  },
+});
+
+export const cancelSurvey = mutation({
+  args: { surveyId: v.id('surveys'), reason: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const user = await getOrCreateUser(ctx);
+    const survey = await ctx.db.get(args.surveyId);
+    if (!survey) throw new Error('Survey not found');
+    if (survey.status === 'completed') throw new Error('Cannot cancel completed survey');
+
+    const now = Date.now();
+    await ctx.db.patch(args.surveyId, {
+      status: 'cancelled',
+      remarks: args.reason ?? survey.remarks,
+      updatedAt: now,
+    });
+
+    await logAudit(ctx, {
+      userId: user._id,
+      action: 'cancel',
+      entityType: 'surveys',
+      entityId: args.surveyId as string,
+    });
+  },
+});
+
+export const deleteSurvey = mutation({
+  args: { surveyId: v.id('surveys') },
+  handler: async (ctx, args) => {
+    const user = await getOrCreateUser(ctx);
+    const survey = await ctx.db.get(args.surveyId);
+    if (!survey) throw new Error('Survey not found');
+    if (survey.status === 'completed') throw new Error('Cannot delete completed survey');
+
+    await ctx.db.delete(args.surveyId);
+    await logAudit(ctx, {
+      userId: user._id,
+      action: 'delete',
+      entityType: 'surveys',
+      entityId: args.surveyId as string,
+    });
+  },
+});
