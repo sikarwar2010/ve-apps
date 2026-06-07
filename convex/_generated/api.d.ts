@@ -11,6 +11,7 @@
 import type * as lib_audit from "../lib/audit.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_numbering from "../lib/numbering.js";
+import type * as lib_presales from "../lib/presales.js";
 import type * as modules_audit from "../modules/audit.js";
 import type * as modules_customers from "../modules/customers.js";
 import type * as modules_dashboard from "../modules/dashboard.js";
@@ -39,6 +40,7 @@ declare const fullApi: ApiFromModules<{
   "lib/audit": typeof lib_audit;
   "lib/auth": typeof lib_auth;
   "lib/numbering": typeof lib_numbering;
+  "lib/presales": typeof lib_presales;
   "modules/audit": typeof modules_audit;
   "modules/customers": typeof modules_customers;
   "modules/dashboard": typeof modules_dashboard;

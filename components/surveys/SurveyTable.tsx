@@ -10,6 +10,7 @@ import { formatCapacity, formatDateTime } from '@/utils/formatters';
 import { ColumnDef } from '@tanstack/react-table';
 import { useQuery } from 'convex/react';
 import { FunctionReturnType } from 'convex/server';
+import { useRouter } from 'next/navigation';
 
 type Survey = FunctionReturnType<typeof api.modules.surveys.listSurveys>[number];
 
@@ -48,6 +49,7 @@ const columns: ColumnDef<Survey>[] = [
 
 export function SurveyTable() {
   const surveys = useQuery(api.modules.surveys.listSurveys, {});
+  const router = useRouter();
 
   if (surveys === undefined) {
     return (
@@ -58,6 +60,12 @@ export function SurveyTable() {
   }
 
   return (
-    <DataTable columns={columns} data={surveys} filterColumn="surveyNumber" filterPlaceholder="Search surveys..." />
+    <DataTable
+      columns={columns}
+      data={surveys}
+      filterColumn="surveyNumber"
+      filterPlaceholder="Search surveys..."
+      onRowClick={(s) => router.push(`/survey/${s._id}`)}
+    />
   );
 }

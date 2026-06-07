@@ -3,6 +3,7 @@ import { mutation, query } from '../_generated/server';
 import { logAudit } from '../lib/audit';
 import { getOrCreateUser } from '../lib/auth';
 import { generateDocumentNumber } from '../lib/numbering';
+import { assertLeadForSurvey } from '../lib/presales';
 
 const surveyStatus = v.union(
   v.literal('scheduled'),
@@ -58,6 +59,7 @@ export const scheduleSurvey = mutation({
     const user = await getOrCreateUser(ctx);
     const lead = await ctx.db.get(args.leadId);
     if (!lead) throw new Error('Lead not found');
+    assertLeadForSurvey(lead);
 
     const now = Date.now();
     const surveyNumber = await generateDocumentNumber(ctx, 'SVY');
@@ -126,6 +128,14 @@ export const completeSurvey = mutation({
       status: 'survey_completed',
       expectedCapacityKw: args.recommendedCapacityKw,
       updatedAt: now,
+    });
+
+    await ctx.db.insert('leadActivities', {
+      leadId: survey.leadId,
+      type: 'visit',
+      content: `Site survey completed — ${args.recommendedCapacityKw} kW recommended (${args.panelCount} panels)`,
+      doneByUserId: user._id,
+      createdAt: now,
     });
 
     return { success: true };

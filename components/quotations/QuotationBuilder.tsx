@@ -7,27 +7,66 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
+import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
+import { DEFAULT_QUOTATION_TERMS, PAYMENT_MILESTONES_DEFAULT } from '@/lib/presales';
 import { calculatePMSuryaSubsidy } from '@/lib/subsidyCalculator';
 import { formatCurrency } from '@/utils/formatters';
 import { useMutation, useQuery } from 'convex/react';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 export function QuotationBuilder() {
   const router = useRouter();
-  const leads = useQuery(api.modules.lead.listLeads, { limit: 100 });
+  const searchParams = useSearchParams();
+  const preLeadId = searchParams.get('leadId') ?? '';
+  const preSurveyId = searchParams.get('surveyId') ?? '';
+
+  const leads = useQuery(api.modules.lead.listLeads, { limit: 200 });
   const products = useQuery(api.modules.products.listProducts, {});
   const createQuotation = useMutation(api.modules.quotations.createQuotation);
 
-  const [leadId, setLeadId] = useState('');
+  const [leadId, setLeadId] = useState(preLeadId);
   const [capacityKw, setCapacityKw] = useState('5');
   const [panelCount, setPanelCount] = useState('10');
+  const [validDays, setValidDays] = useState('30');
+  const [terms, setTerms] = useState(DEFAULT_QUOTATION_TERMS);
   const [submitting, setSubmitting] = useState(false);
 
+  const selectedLead = leads?.find((l) => l._id === leadId);
+  const eligibleLeads = useMemo(() => leads?.filter((l) => !['won', 'lost'].includes(l.status)) ?? [], [leads]);
+
+  useEffect(() => {
+    if (preLeadId) setLeadId(preLeadId);
+  }, [preLeadId]);
+
+  useEffect(() => {
+    if (selectedLead?.expectedCapacityKw) {
+      setCapacityKw(String(selectedLead.expectedCapacityKw));
+      const panels = Math.ceil((selectedLead.expectedCapacityKw * 1000) / 540);
+      setPanelCount(String(panels || 10));
+    }
+  }, [selectedLead?.expectedCapacityKw, selectedLead?._id]);
+
   const subsidy = calculatePMSuryaSubsidy(parseFloat(capacityKw) || 0);
+
+  const previewTotal = useMemo(() => {
+    if (!products?.length) return 0;
+    const kw = parseFloat(capacityKw) || 0;
+    const panels = parseInt(panelCount, 10) || 0;
+    const panel = products.find((p) => p.category === 'panel');
+    const inverter = products.find((p) => p.category === 'inverter');
+    const structure = products.find((p) => p.category === 'structure');
+    const labor = products.find((p) => p.category === 'labor');
+    let total = 0;
+    if (panel) total += (panel.mrp ?? 15000) * panels * 1.12;
+    if (inverter) total += (inverter.mrp ?? 35000) * 1.12;
+    if (structure) total += (structure.mrp ?? 22000) * 1.18;
+    if (labor) total += (labor.mrp ?? 12000) * 1.18;
+    return Math.round(total);
+  }, [products, capacityKw, panelCount]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -86,15 +125,18 @@ export function QuotationBuilder() {
 
     setSubmitting(true);
     try {
-      const validTill = Date.now() + 30 * 86400000;
+      const validTill = Date.now() + parseInt(validDays, 10) * 86400000;
       const id = await createQuotation({
         leadId: leadId as Id<'leads'>,
+        surveyId: preSurveyId ? (preSurveyId as Id<'surveys'>) : undefined,
         systemCapacityKw: kw,
         panelCount: panels,
         validTill,
         lineItems,
+        ...PAYMENT_MILESTONES_DEFAULT,
+        termsAndConditions: terms,
       });
-      toast.success('Quotation created');
+      toast.success('Draft quotation created');
       router.push(`/quotations/${id}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create quotation');
@@ -112,16 +154,24 @@ export function QuotationBuilder() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader
         title="New quotation"
-        description="Auto-build from product catalog with PM Surya subsidy"
+        description="Enterprise quote with GST, PM Surya subsidy, and payment milestones"
         breadcrumbs={[{ label: 'Quotations', href: '/quotations' }, { label: 'New' }]}
       />
+
+      {selectedLead && selectedLead.status !== 'survey_completed' && selectedLead.status !== 'interested' ? (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+          Tip: Complete a site survey first for accurate system sizing. You can still draft a quote for interested
+          leads.
+        </div>
+      ) : null}
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Lead & system</CardTitle>
+            <CardTitle className="text-sm">1. Customer & system</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -131,17 +181,17 @@ export function QuotationBuilder() {
                   <SelectValue placeholder="Select lead" />
                 </SelectTrigger>
                 <SelectContent>
-                  {leads.map((l) => (
+                  {eligibleLeads.map((l) => (
                     <SelectItem key={l._id} value={l._id}>
-                      {l.name} — {l.city}
+                      {l.name} — {l.city} ({l.status.replace(/_/g, ' ')})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <Label htmlFor="kw">System capacity (kW)</Label>
+                <Label htmlFor="kw">Capacity (kWp)</Label>
                 <Input
                   id="kw"
                   type="number"
@@ -154,16 +204,51 @@ export function QuotationBuilder() {
                 <Label htmlFor="panels">Panel count</Label>
                 <Input id="panels" type="number" value={panelCount} onChange={(e) => setPanelCount(e.target.value)} />
               </div>
-            </div>
-            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-sm">
-              <p className="text-muted-foreground">PM Surya subsidy estimate</p>
-              <p className="text-lg font-semibold text-emerald-700">{formatCurrency(subsidy.subsidyAmount)}</p>
-              <p className="text-xs text-muted-foreground">{subsidy.description}</p>
+              <div>
+                <Label htmlFor="valid">Valid (days)</Label>
+                <Input id="valid" type="number" value={validDays} onChange={(e) => setValidDays(e.target.value)} />
+              </div>
             </div>
           </CardContent>
         </Card>
-        <Button type="submit" disabled={submitting || !leadId} className="w-full">
-          {submitting ? 'Creating…' : 'Create draft quotation'}
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">2. Commercial summary</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-3">
+            <div className="rounded-lg bg-muted/40 p-3">
+              <p className="text-xs text-muted-foreground">Est. gross (incl. GST)</p>
+              <p className="text-lg font-bold">{formatCurrency(previewTotal)}</p>
+            </div>
+            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+              <p className="text-xs text-muted-foreground">PM Surya subsidy</p>
+              <p className="text-lg font-bold text-emerald-700">{formatCurrency(subsidy.subsidyAmount)}</p>
+              <p className="text-[10px] text-muted-foreground">{subsidy.description}</p>
+            </div>
+            <div className="rounded-lg bg-slate-900 p-3 text-white">
+              <p className="text-xs text-slate-400">Est. net payable</p>
+              <p className="text-lg font-bold">{formatCurrency(Math.max(0, previewTotal - subsidy.subsidyAmount))}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">3. Terms (printed on quotation)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              value={terms}
+              onChange={(e) => setTerms(e.target.value)}
+              rows={6}
+              className="text-xs leading-relaxed"
+            />
+          </CardContent>
+        </Card>
+
+        <Button type="submit" disabled={submitting || !leadId} className="w-full" size="lg">
+          {submitting ? 'Creating draft…' : 'Create draft quotation'}
         </Button>
       </form>
     </div>

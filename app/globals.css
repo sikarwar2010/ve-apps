@@ -121,10 +121,35 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   html {
     @apply font-sans;
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .quotation-document,
+  .quotation-document * {
+    visibility: visible;
+  }
+
+  .quotation-document {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    box-shadow: none !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
   }
 }

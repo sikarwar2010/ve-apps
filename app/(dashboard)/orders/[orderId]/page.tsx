@@ -1,4 +1,4 @@
-import { OrderDetailView } from '@/components/shared/EntityDetailViews';
+import { OrderDetailView } from '@/components/orders/OrderDetailView';
 import type { Id } from '@/convex/_generated/dataModel';
 
 type PageProps = { params: Promise<{ orderId: string }> };

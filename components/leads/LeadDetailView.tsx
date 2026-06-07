@@ -21,7 +21,7 @@ import type { Id } from '@/convex/_generated/dataModel';
 import { calculatePMSuryaSubsidy } from '@/lib/subsidyCalculator';
 import { formatCapacity, formatCurrency, formatDate } from '@/utils/formatters';
 import { useMutation, useQuery } from 'convex/react';
-import { ChevronDown, MapPin, Phone, Zap } from 'lucide-react';
+import { ChevronDown, FileText, MapPin, Phone, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -108,6 +108,14 @@ export function LeadDetailView({ leadId }: LeadDetailViewProps) {
         ]}
         actions={
           <div className="flex items-center gap-2">
+            {['survey_completed', 'interested', 'quotation_sent', 'negotiation', 'contacted'].includes(lead.status) ? (
+              <Button asChild size="sm" variant="secondary">
+                <Link href={`/quotations/new?leadId=${leadId}`}>
+                  <FileText className="mr-1.5 size-4" />
+                  Create quotation
+                </Link>
+              </Button>
+            ) : null}
             {lead.status !== 'won' && lead.status !== 'lost' ? (
               <ConvertCustomerDialog leadId={leadId} defaultDiscom={lead.discomName} />
             ) : null}

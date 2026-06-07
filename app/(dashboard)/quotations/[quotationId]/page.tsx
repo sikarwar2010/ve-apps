@@ -1,4 +1,4 @@
-import { QuotationDetailView } from '@/components/shared/EntityDetailViews';
+import { QuotationDetailView } from '@/components/quotations/QuotationDetailView';
 import type { Id } from '@/convex/_generated/dataModel';
 
 type PageProps = { params: Promise<{ quotationId: string }> };

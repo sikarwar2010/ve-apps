@@ -22,7 +22,16 @@ export const ensureOrganization = mutation({
         email: 'info@suryaerp.in',
         phone: '+91 98765 43210',
         website: 'https://suryaerp.in',
-        bankAccounts: [],
+        bankAccounts: [
+          {
+            bankName: 'State Bank of India',
+            accountNumber: '123456789012',
+            ifsc: 'SBIN0001234',
+            branch: 'MI Road, Jaipur',
+            accountType: 'Current',
+            isPrimary: true,
+          },
+        ],
         oemDealerships: [{ oemName: 'Waaree', dealerCode: 'WR-JPR-001', region: 'North' }],
         createdAt: now,
         updatedAt: now,

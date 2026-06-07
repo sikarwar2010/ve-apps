@@ -90,11 +90,11 @@ export const convertLeadToCustomer = mutation({
       updatedAt: now,
     });
 
-    await ctx.db.patch(args.leadId, { status: 'won', updatedAt: now });
+    await ctx.db.patch(args.leadId, { status: 'interested', updatedAt: now });
     await ctx.db.insert('leadActivities', {
       leadId: args.leadId,
       type: 'status_change',
-      content: `Lead converted to customer ${customerNumber}`,
+      content: `Lead converted to customer ${customerNumber} (KYC in progress)`,
       doneByUserId: user._id,
       createdAt: now,
     });

@@ -3,6 +3,13 @@ import { mutation, query } from '../_generated/server';
 import { logAudit } from '../lib/audit';
 import { getOrCreateUser } from '../lib/auth';
 import { generateDocumentNumber } from '../lib/numbering';
+import { assertLeadForQuotation, getCompletedSurveyForLead, getOrCreateCustomerFromLead } from '../lib/presales';
+
+const DEFAULT_TERMS = `1. Quotation valid 30 days from issue date.
+2. GST as per line-item HSN rates. PM Surya subsidy per current MNRE norms — government disbursement to customer bank account.
+3. Payment per milestone schedule; token non-refundable after PO confirmation.
+4. Installation 15–21 working days from dispatch, subject to DISCOM approvals.
+5. OEM warranties apply; workmanship 1 year from commissioning.`;
 
 export const listQuotations = query({
   args: { status: v.optional(v.string()), limit: v.optional(v.number()) },
@@ -11,7 +18,8 @@ export const listQuotations = query({
     if (!identity) throw new Error('Unauthenticated');
 
     const limit = args.limit ?? 50;
-    const quotations = await ctx.db.query('quotations').order('desc').take(limit);
+    let quotations = await ctx.db.query('quotations').order('desc').take(limit);
+    if (args.status) quotations = quotations.filter((q) => q.status === args.status);
 
     return Promise.all(
       quotations.map(async (q) => {
@@ -29,7 +37,53 @@ export const getQuotationById = query({
     if (!quotation) return null;
     const lead = await ctx.db.get(quotation.leadId);
     const survey = quotation.surveyId ? await ctx.db.get(quotation.surveyId) : null;
-    return { ...quotation, lead, survey };
+    const customer = quotation.customerId ? await ctx.db.get(quotation.customerId) : null;
+    const createdBy = await ctx.db.get(quotation.createdByUserId);
+    return { ...quotation, lead, survey, customer, createdBy };
+  },
+});
+
+/** Full document payload for customer-facing quotation PDF/print */
+export const getQuotationDocument = query({
+  args: { quotationId: v.id('quotations') },
+  handler: async (ctx, args) => {
+    const quotation = await ctx.db.get(args.quotationId);
+    if (!quotation) return null;
+
+    const [company, lead, survey, createdBy] = await Promise.all([
+      ctx.db.query('company').first(),
+      ctx.db.get(quotation.leadId),
+      quotation.surveyId ? ctx.db.get(quotation.surveyId) : null,
+      ctx.db.get(quotation.createdByUserId),
+    ]);
+
+    const customer = quotation.customerId ? await ctx.db.get(quotation.customerId) : null;
+    const primaryBank = company?.bankAccounts?.find((b) => b.isPrimary) ?? company?.bankAccounts?.[0];
+
+    return {
+      quotation,
+      company,
+      lead,
+      survey,
+      customer,
+      createdBy,
+      primaryBank,
+      billTo: customer ?? lead,
+    };
+  },
+});
+
+export const listQuotationsByLead = query({
+  args: { leadId: v.id('leads') },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error('Unauthenticated');
+
+    const all = await ctx.db
+      .query('quotations')
+      .withIndex('by_lead', (q) => q.eq('leadId', args.leadId))
+      .collect();
+    return all.sort((a, b) => b.createdAt - a.createdAt);
   },
 });
 
@@ -50,14 +104,41 @@ export const updateQuotationStatus = mutation({
     const quotation = await ctx.db.get(args.quotationId);
     if (!quotation) throw new Error('Quotation not found');
 
+    const now = Date.now();
+    if (args.status === 'sent' && quotation.validTill < now) {
+      throw new Error('Quotation has expired. Create a revised quote.');
+    }
+
     await ctx.db.patch(args.quotationId, {
       status: args.status,
-      updatedAt: Date.now(),
-      ...(args.status === 'approved' ? { approvedByUserId: user._id, approvedAt: Date.now() } : {}),
+      updatedAt: now,
+      ...(args.status === 'approved' ? { approvedByUserId: user._id, approvedAt: now } : {}),
     });
 
-    if (args.status === 'sent') {
-      await ctx.db.patch(quotation.leadId, { status: 'quotation_sent', updatedAt: Date.now() });
+    const lead = await ctx.db.get(quotation.leadId);
+    if (lead) {
+      if (args.status === 'sent') {
+        await ctx.db.patch(quotation.leadId, { status: 'quotation_sent', updatedAt: now });
+        await ctx.db.insert('leadActivities', {
+          leadId: quotation.leadId,
+          type: 'email',
+          content: `Quotation ${quotation.quotationNumber} sent to customer`,
+          doneByUserId: user._id,
+          createdAt: now,
+        });
+      }
+      if (args.status === 'approved') {
+        await ctx.db.patch(quotation.leadId, { status: 'negotiation', updatedAt: now });
+      }
+      if (args.status === 'rejected') {
+        await ctx.db.insert('leadActivities', {
+          leadId: quotation.leadId,
+          type: 'note',
+          content: `Quotation ${quotation.quotationNumber} rejected by customer`,
+          doneByUserId: user._id,
+          createdAt: now,
+        });
+      }
     }
 
     await logAudit(ctx, {
@@ -70,22 +151,75 @@ export const updateQuotationStatus = mutation({
   },
 });
 
-export const convertToOrder = mutation({
-  args: { quotationId: v.id('quotations'), customerId: v.id('customers') },
+export const sendQuotation = mutation({
+  args: { quotationId: v.id('quotations') },
   handler: async (ctx, args) => {
     const user = await getOrCreateUser(ctx);
     const quotation = await ctx.db.get(args.quotationId);
     if (!quotation) throw new Error('Quotation not found');
-    if (quotation.status !== 'approved') throw new Error('Quotation must be approved first');
+    if (quotation.status !== 'draft' && quotation.status !== 'under_negotiation') {
+      throw new Error('Only draft quotations can be sent');
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(args.quotationId, { status: 'sent', updatedAt: now });
+    await ctx.db.patch(quotation.leadId, { status: 'quotation_sent', updatedAt: now });
+    await ctx.db.insert('leadActivities', {
+      leadId: quotation.leadId,
+      type: 'email',
+      content: `Quotation ${quotation.quotationNumber} sent to customer for review`,
+      doneByUserId: user._id,
+      createdAt: now,
+    });
+
+    await logAudit(ctx, {
+      userId: user._id,
+      action: 'send',
+      entityType: 'quotations',
+      entityId: args.quotationId as string,
+    });
+
+    return { success: true };
+  },
+});
+
+export const convertToOrder = mutation({
+  args: {
+    quotationId: v.id('quotations'),
+    customerId: v.optional(v.id('customers')),
+  },
+  handler: async (ctx, args) => {
+    const user = await getOrCreateUser(ctx);
+    const quotation = await ctx.db.get(args.quotationId);
+    if (!quotation) throw new Error('Quotation not found');
+    if (quotation.status === 'converted_to_order') {
+      throw new Error('Quotation already converted to order');
+    }
+    if (quotation.status !== 'approved') {
+      throw new Error('Quotation must be approved by customer before creating sales order');
+    }
+
+    const lead = await ctx.db.get(quotation.leadId);
+    if (!lead) throw new Error('Lead not found');
+
+    let customerId = args.customerId;
+    if (!customerId) {
+      customerId = await getOrCreateCustomerFromLead(ctx, lead, user._id, (p) => generateDocumentNumber(ctx, p));
+    }
 
     const now = Date.now();
     const orderNumber = await generateDocumentNumber(ctx, 'SO');
     const netAmount = quotation.netAmountAfterSubsidy ?? quotation.totalAmount;
 
+    const tokenPct = quotation.tokenAmountPct ?? 10;
+    const deliveryPct = quotation.onDeliveryPct ?? 40;
+    const installPct = quotation.onInstallationPct ?? 40;
+    const subsidyPct = quotation.onSubsidyPct ?? 10;
+
     const orderId = await ctx.db.insert('salesOrders', {
       orderNumber,
       quotationId: args.quotationId,
-      customerId: args.customerId,
+      customerId,
       leadId: quotation.leadId,
       status: 'confirmed',
       orderDate: now,
@@ -93,29 +227,24 @@ export const convertToOrder = mutation({
       subsidyAmountEstimated: quotation.subsidyAmountEstimated ?? 0,
       netAmount,
       paymentSchedule: [
+        { milestone: 'Token / Advance', duePct: tokenPct, dueAmount: (netAmount * tokenPct) / 100, status: 'pending' },
         {
-          milestone: 'Token',
-          duePct: quotation.tokenAmountPct ?? 10,
-          dueAmount: (netAmount * (quotation.tokenAmountPct ?? 10)) / 100,
-          status: 'pending' as const,
-        },
-        {
-          milestone: 'On Delivery',
-          duePct: quotation.onDeliveryPct ?? 40,
-          dueAmount: (netAmount * (quotation.onDeliveryPct ?? 40)) / 100,
-          status: 'pending' as const,
+          milestone: 'On Material Delivery',
+          duePct: deliveryPct,
+          dueAmount: (netAmount * deliveryPct) / 100,
+          status: 'pending',
         },
         {
           milestone: 'On Installation',
-          duePct: quotation.onInstallationPct ?? 40,
-          dueAmount: (netAmount * (quotation.onInstallationPct ?? 40)) / 100,
-          status: 'pending' as const,
+          duePct: installPct,
+          dueAmount: (netAmount * installPct) / 100,
+          status: 'pending',
         },
         {
-          milestone: 'On Subsidy',
-          duePct: quotation.onSubsidyPct ?? 10,
-          dueAmount: (netAmount * (quotation.onSubsidyPct ?? 10)) / 100,
-          status: 'pending' as const,
+          milestone: 'On Subsidy Release',
+          duePct: subsidyPct,
+          dueAmount: (netAmount * subsidyPct) / 100,
+          status: 'pending',
         },
       ],
       isFinanced: false,
@@ -124,14 +253,26 @@ export const convertToOrder = mutation({
       updatedAt: now,
     });
 
-    await ctx.db.patch(args.quotationId, { status: 'converted_to_order', updatedAt: now });
+    await ctx.db.patch(args.quotationId, {
+      status: 'converted_to_order',
+      customerId,
+      updatedAt: now,
+    });
+    await ctx.db.patch(quotation.leadId, { status: 'won', updatedAt: now });
+    await ctx.db.insert('leadActivities', {
+      leadId: quotation.leadId,
+      type: 'status_change',
+      content: `Sales order ${orderNumber} confirmed from quotation ${quotation.quotationNumber}`,
+      doneByUserId: user._id,
+      createdAt: now,
+    });
 
     await logAudit(ctx, {
       userId: user._id,
       action: 'convert',
       entityType: 'salesOrders',
       entityId: orderId as string,
-      newValues: { quotationId: args.quotationId },
+      newValues: { quotationId: args.quotationId, orderNumber },
     });
 
     return orderId;
@@ -165,6 +306,16 @@ export const createQuotation = mutation({
   },
   handler: async (ctx, args) => {
     const user = await getOrCreateUser(ctx);
+    const lead = await ctx.db.get(args.leadId);
+    if (!lead) throw new Error('Lead not found');
+    assertLeadForQuotation(lead);
+
+    const completedSurvey = await getCompletedSurveyForLead(ctx, args.leadId);
+    if (!completedSurvey && lead.status !== 'interested' && lead.status !== 'contacted') {
+      throw new Error('Complete site survey before creating quotation');
+    }
+
+    const surveyId = args.surveyId ?? completedSurvey?._id;
 
     let subtotal = 0;
     let totalTax = 0;
@@ -199,7 +350,7 @@ export const createQuotation = mutation({
       quotationNumber,
       version: 1,
       leadId: args.leadId,
-      surveyId: args.surveyId,
+      surveyId,
       status: 'draft',
       validTill: args.validTill,
       systemCapacityKw: args.systemCapacityKw,
@@ -220,10 +371,18 @@ export const createQuotation = mutation({
       onDeliveryPct: args.onDeliveryPct ?? 40,
       onInstallationPct: args.onInstallationPct ?? 40,
       onSubsidyPct: args.onSubsidyPct ?? 10,
-      termsAndConditions: args.termsAndConditions,
+      termsAndConditions: args.termsAndConditions ?? DEFAULT_TERMS,
       createdByUserId: user._id,
       createdAt: now,
       updatedAt: now,
+    });
+
+    await ctx.db.insert('leadActivities', {
+      leadId: args.leadId,
+      type: 'note',
+      content: `Quotation ${quotationNumber} drafted (${capacityKw} kWp)`,
+      doneByUserId: user._id,
+      createdAt: now,
     });
 
     await logAudit(ctx, {
