@@ -5,7 +5,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -21,10 +20,8 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { usePermissions } from '@/hooks/usePermissions';
-import { getRoleLabel } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
-import { useUser } from '@clerk/nextjs';
-import { ChevronRight, Settings, Sun, Zap } from 'lucide-react';
+import { ChevronRight, Sun } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -114,16 +111,13 @@ function NavGroupItem({ item, pathname }: { item: NavItem; pathname: string }) {
 
 export default function AppSidebar() {
   const pathname = usePathname();
-  const { hasPermission, role, isLoading, hasDbUser } = usePermissions();
-  const { user } = useUser();
+  const { hasPermission, isLoading, hasDbUser } = usePermissions();
 
   const canShowItem = (permission: NavItem['permission']) => {
     if (permission == null) return true;
     if (isLoading || !hasDbUser) return true;
     return hasPermission(permission);
   };
-
-  const userInitials = (user?.firstName?.[0] ?? user?.primaryEmailAddress?.emailAddress?.[0] ?? 'U').toUpperCase();
 
   return (
     <Sidebar collapsible="icon">
@@ -178,45 +172,6 @@ export default function AppSidebar() {
           );
         })}
       </SidebarContent>
-
-      <SidebarFooter className="gap-2 p-3">
-        <SidebarSeparator className="opacity-60" />
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              tooltip="Quick actions"
-              className="rounded-xl border border-dashed border-sidebar-border/80 bg-sidebar-accent/30"
-            >
-              <Link href="/crm/lead">
-                <Zap className="text-amber-500" />
-                <span>New lead</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              asChild
-              className="rounded-xl border border-sidebar-border/60 bg-sidebar-accent/40"
-            >
-              <Link href="/settings">
-                <div className="relative flex size-8 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-amber-400 to-orange-500 text-[11px] font-bold text-white">
-                  {userInitials}
-                  <span className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-sidebar bg-emerald-400" />
-                </div>
-                <div className="grid flex-1 text-left leading-tight">
-                  <span className="truncate text-xs font-semibold">
-                    {user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? 'User'}
-                  </span>
-                  <span className="truncate text-[10px] text-muted-foreground">{getRoleLabel(role)}</span>
-                </div>
-                <Settings className="ml-auto size-3.5 text-muted-foreground/60" />
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
 
       <SidebarRail />
     </Sidebar>

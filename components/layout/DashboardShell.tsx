@@ -8,7 +8,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider
       defaultOpen
-      className="min-h-svh bg-[#e8eaef] dark:bg-[#09090b]"
+      className="min-h-svh bg-background"
       style={
         {
           '--sidebar-width': '17rem',
@@ -17,7 +17,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       }
     >
       <AppSidebar />
-      <SidebarInset className="min-h-svh overflow-hidden md:my-2 md:mr-2 md:min-h-[calc(100svh-1rem)] md:rounded-2xl md:border md:border-border/60 md:bg-background md:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.12)] dark:md:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.55)]">
+      <SidebarInset className="min-h-svh overflow-hidden border-l border-border/60 bg-background">
         <TopNav />
         <div className="relative flex flex-1 flex-col overflow-hidden">
           <div

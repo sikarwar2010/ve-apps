@@ -5,8 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { UserButton } from '@clerk/nextjs';
-import { Bell, ChevronRight, Home, Search, Sparkles } from 'lucide-react';
+import { usePermissions } from '@/hooks/usePermissions';
+import { getRoleLabel } from '@/lib/permissions';
+import { cn } from '@/lib/utils';
+import { UserButton, useUser } from '@clerk/nextjs';
+import { Bell, ChevronRight, Home, Search } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -48,6 +51,12 @@ function toLabel(seg: string) {
 
 export default function TopNav() {
   const pathname = usePathname();
+  const { user } = useUser();
+  const { role } = usePermissions();
+
+  const displayName = user?.fullName ?? user?.firstName ?? 'Account';
+  const email = user?.primaryEmailAddress?.emailAddress;
+  const roleLabel = getRoleLabel(role);
 
   const segments = pathname.split('/').filter(Boolean);
   const breadcrumbs = segments.map((seg, i) => ({
@@ -120,16 +129,6 @@ export default function TopNav() {
         <Button
           type="button"
           variant="ghost"
-          size="sm"
-          className="hidden gap-1.5 text-muted-foreground hover:text-foreground md:inline-flex"
-        >
-          <Sparkles className="size-3.5 text-amber-500" />
-          <span className="text-xs font-medium">Ask AI</span>
-        </Button>
-
-        <Button
-          type="button"
-          variant="ghost"
           size="icon-sm"
           className="relative text-muted-foreground hover:text-foreground"
           aria-label="Notifications"
@@ -144,13 +143,37 @@ export default function TopNav() {
 
         <Separator orientation="vertical" className="mx-1 hidden h-5 opacity-40 sm:block" />
 
-        <UserButton
-          appearance={{
-            elements: {
-              avatarBox: 'size-8 ring-2 ring-border/60 ring-offset-2 ring-offset-background',
-            },
-          }}
-        />
+        <div
+          className={cn(
+            'flex max-w-55 items-center gap-2 rounded-xl border border-border/50 bg-muted/30 py-0.5 pr-2.5 pl-0.5',
+            'transition-colors hover:bg-muted/50',
+          )}
+        >
+          <UserButton
+            appearance={{
+              variables: {
+                borderRadius: '0.625rem',
+                colorPrimary: '#f59e0b',
+                colorText: 'hsl(var(--foreground))',
+                colorTextSecondary: 'hsl(var(--muted-foreground))',
+              },
+              elements: {
+                avatarBox: 'size-8 rounded-lg shadow-sm ring-1 ring-border/60',
+                userButtonPopoverCard:
+                  'rounded-xl border border-border/60 bg-popover shadow-xl [&_.cl-userButtonPopoverActionButton]:rounded-lg',
+                userButtonPopoverActionButton: 'rounded-lg text-sm',
+                userButtonPopoverActionButtonText: 'text-sm',
+                userButtonPopoverFooter: 'hidden',
+              },
+            }}
+          />
+          <div className="hidden min-w-0 flex-col sm:flex">
+            <span className="truncate text-xs font-semibold leading-tight text-foreground">{displayName}</span>
+            <span className="truncate text-[10px] leading-tight text-muted-foreground">
+              {roleLabel !== 'Guest' ? roleLabel : (email ?? 'Signed in')}
+            </span>
+          </div>
+        </div>
       </div>
     </header>
   );

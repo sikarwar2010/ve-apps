@@ -79,10 +79,20 @@ const RECENT_LEADS = [
 ];
 
 const RECENT_ACTIVITY = [
-  { icon: CheckCircle2, color: 'text-emerald-500', text: 'Installation completed — Vikas Mehta, Indore', time: '5m ago' },
+  {
+    icon: CheckCircle2,
+    color: 'text-emerald-500',
+    text: 'Installation completed — Vikas Mehta, Indore',
+    time: '5m ago',
+  },
   { icon: FileText, color: 'text-blue-500', text: 'Quotation sent to Anjali Singh, Bhopal', time: '22m ago' },
   { icon: MapPin, color: 'text-violet-500', text: 'Site survey scheduled — Deepak Joshi, Nagpur', time: '1h ago' },
-  { icon: IndianRupee, color: 'text-emerald-500', text: 'Payment received ₹1.8L from Sharma Household', time: '2h ago' },
+  {
+    icon: IndianRupee,
+    color: 'text-emerald-500',
+    text: 'Payment received ₹1.8L from Sharma Household',
+    time: '2h ago',
+  },
   { icon: Clock, color: 'text-amber-500', text: 'GRN pending approval — PO #4821', time: '3h ago' },
   { icon: Loader2, color: 'text-blue-500', text: 'Subsidy application submitted — 3 customers', time: '4h ago' },
 ];
@@ -186,13 +196,16 @@ export default function DashboardPage() {
             </Link>
           </div>
           <div className="space-y-1">
-            {RECENT_LEADS.map((lead, i) => (
+            {RECENT_LEADS.map((lead) => (
               <div
-                key={i}
+                key={`${lead.name}-${lead.location}`}
                 className="flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/40"
               >
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-100 to-slate-200 text-[11px] font-semibold text-slate-600 dark:from-slate-800 dark:to-slate-700 dark:text-slate-300">
-                  {lead.name.split(' ').map((n) => n[0]).join('')}
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-slate-100 to-slate-200 text-[11px] font-semibold text-slate-600 dark:from-slate-800 dark:to-slate-700 dark:text-slate-300">
+                  {lead.name
+                    .split(' ')
+                    .map((n) => n[0])
+                    .join('')}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] font-medium">{lead.name}</p>
@@ -224,8 +237,11 @@ export default function DashboardPage() {
           </Badge>
         </div>
         <div className="grid gap-x-6 gap-y-0 sm:grid-cols-2 lg:grid-cols-3">
-          {RECENT_ACTIVITY.map((activity, i) => (
-            <div key={i} className="flex items-start gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-muted/30">
+          {RECENT_ACTIVITY.map((activity) => (
+            <div
+              key={activity.text}
+              className="flex items-start gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-muted/30"
+            >
               <activity.icon className={`mt-px size-3.5 shrink-0 ${activity.color}`} />
               <div className="min-w-0 flex-1">
                 <p className="text-[12px] leading-snug text-foreground/80">{activity.text}</p>
