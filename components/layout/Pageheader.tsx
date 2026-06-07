@@ -25,10 +25,10 @@ type PageHeaderProps = {
 
 export default function PageHeader({ title, description, breadcrumbs, actions, className }: PageHeaderProps) {
   return (
-    <header className={cn('mb-6 space-y-2', className)}>
+    <header className={cn('mb-6 space-y-3', className)}>
       {breadcrumbs && breadcrumbs.length > 0 && (
         <Breadcrumb>
-          <BreadcrumbList className="text-[11px]">
+          <BreadcrumbList className="text-xs">
             {breadcrumbs.map((crumb, index) => {
               const isLast = index === breadcrumbs.length - 1;
               return (
@@ -38,7 +38,12 @@ export default function PageHeader({ title, description, breadcrumbs, actions, c
                       <BreadcrumbPage className="font-medium text-foreground/80">{crumb.label}</BreadcrumbPage>
                     ) : (
                       <BreadcrumbLink asChild>
-                        <Link href={crumb.href}>{crumb.label}</Link>
+                        <Link
+                          href={crumb.href}
+                          className="cursor-pointer transition-colors duration-200 hover:text-brand"
+                        >
+                          {crumb.label}
+                        </Link>
                       </BreadcrumbLink>
                     )}
                   </BreadcrumbItem>
@@ -51,9 +56,9 @@ export default function PageHeader({ title, description, breadcrumbs, actions, c
       )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 space-y-1">
-          <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{title}</h1>
-          {description && <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>}
+        <div className="min-w-0 space-y-1.5">
+          <h1 className="font-heading text-xl font-bold tracking-tight text-foreground sm:text-2xl">{title}</h1>
+          {description && <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p>}
         </div>
         {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
       </div>

@@ -68,24 +68,27 @@ export default function TopNav() {
   }));
 
   const pageTitle = breadcrumbs.at(-1)?.label ?? 'Dashboard';
+  const isHome = pathname === '/';
 
   return (
-    <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border/50 bg-background/95 px-3 backdrop-blur-xl md:px-5">
+    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border/60 bg-background/80 px-3 backdrop-blur-xl md:px-5">
       <div className="flex items-center gap-1 md:gap-0">
-        <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground" />
+        <SidebarTrigger className="-ml-1 text-muted-foreground transition-colors duration-200 hover:text-foreground" />
         <span className="text-xs font-medium text-muted-foreground md:hidden">Menu</span>
       </div>
 
       <Separator orientation="vertical" className="mr-1 hidden h-5 opacity-40 sm:block" />
 
       <div className="flex min-w-0 flex-1 items-center gap-2">
-        <p className="truncate text-sm font-semibold tracking-tight sm:hidden">{pageTitle}</p>
+        <p className="truncate font-heading text-sm font-semibold tracking-tight sm:hidden">{pageTitle}</p>
         <div className="hidden min-w-0 flex-1 flex-col justify-center sm:flex">
-          <p className="truncate text-sm font-semibold tracking-tight text-foreground">{pageTitle}</p>
+          <p className="truncate font-heading text-sm font-semibold tracking-tight text-foreground">
+            {isHome ? 'Overview' : pageTitle}
+          </p>
           <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-0.5 text-xs text-muted-foreground">
             <Link
               href="/"
-              className="flex shrink-0 items-center rounded-sm p-0.5 transition-colors hover:text-foreground"
+              className="flex shrink-0 cursor-pointer items-center rounded-sm p-0.5 transition-colors duration-200 hover:text-brand"
               aria-label="Dashboard home"
             >
               <Home className="size-3" />
@@ -96,7 +99,10 @@ export default function TopNav() {
                 {crumb.isLast ? (
                   <span className="truncate font-medium text-muted-foreground">{crumb.label}</span>
                 ) : (
-                  <Link href={crumb.href} className="truncate transition-colors hover:text-foreground">
+                  <Link
+                    href={crumb.href}
+                    className="truncate cursor-pointer transition-colors duration-200 hover:text-foreground"
+                  >
                     {crumb.label}
                   </Link>
                 )}
@@ -112,7 +118,7 @@ export default function TopNav() {
           <Input
             type="search"
             placeholder="Search leads, customers, orders…"
-            className="h-9 w-56 border-border/50 bg-muted/35 pl-9 text-sm shadow-none transition-[width,box-shadow] duration-200 focus-visible:w-72 focus-visible:bg-background focus-visible:ring-1 xl:w-64 xl:focus-visible:w-80"
+            className="h-9 w-56 border-border/60 bg-muted/40 pl-9 text-sm shadow-none transition-[width,box-shadow,background-color] duration-200 focus-visible:w-72 focus-visible:border-brand/30 focus-visible:bg-background focus-visible:ring-brand/20 xl:w-64 xl:focus-visible:w-80"
           />
           <kbd className="pointer-events-none absolute top-1/2 right-2.5 hidden -translate-y-1/2 rounded border border-border/60 bg-background/80 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground/70 xl:inline">
             ⌘K
@@ -122,7 +128,7 @@ export default function TopNav() {
           type="button"
           variant="ghost"
           size="icon-sm"
-          className="text-muted-foreground hover:text-foreground lg:hidden"
+          className="text-muted-foreground transition-colors duration-200 hover:text-foreground lg:hidden"
           aria-label="Search"
         >
           <Search className="size-4" />
@@ -136,8 +142,8 @@ export default function TopNav() {
 
         <div
           className={cn(
-            'flex max-w-55 items-center gap-2 rounded-xl border border-border/50 bg-muted/30 py-0.5 pr-2.5 pl-0.5',
-            'transition-colors hover:bg-muted/50',
+            'flex max-w-55 cursor-default items-center gap-2 rounded-xl border border-border/60 bg-card/60 py-0.5 pr-2.5 pl-0.5',
+            'transition-colors duration-200 hover:border-border hover:bg-card',
           )}
         >
           <UserButton />

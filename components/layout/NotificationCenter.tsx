@@ -44,7 +44,7 @@ export function NotificationCenter() {
         >
           <Bell className="size-4" />
           {count > 0 ? (
-            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white ring-2 ring-background">
+            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[9px] font-bold text-brand-foreground ring-2 ring-background">
               {count > 9 ? '9+' : count}
             </span>
           ) : null}
