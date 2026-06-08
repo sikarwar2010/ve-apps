@@ -33,10 +33,13 @@ export function LeadEditForm({ leadId }: LeadEditFormProps) {
       source: 'manual',
       name: '',
       mobile: '',
+      email: '',
       addressLine1: '',
       city: '',
       state: '',
       pincode: '',
+      discomName: '',
+      discomConsumerNo: '',
     },
   });
 
